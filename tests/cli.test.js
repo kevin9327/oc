@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 // Dispatch tests: the first word of argv reaches the right handler with the
 // right arguments, and every wrong first word fails in one line that names the
@@ -19,7 +20,7 @@ const { distill } = await import('../src/distill.js');
 const { render } = await import('../src/render.js');
 const { saveSession, sessionFromPage } = await import('../src/session.js');
 
-const bin = new URL('../src/cli.js', import.meta.url).pathname;
+const bin = fileURLToPath(new URL('../src/cli.js', import.meta.url));
 const newsHtml = readFileSync(new URL('./pages/news.html', import.meta.url), 'utf8');
 
 const PROXY_ENV_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'no_proxy'];
@@ -198,7 +199,7 @@ test('do without a number, or with one the page does not have, fails in one line
 
 test('the planned commands fail with the same one-line message, naming themselves', () => {
   seed('stubs');
-  for (const args of [['fill', '1', 'hello'], ['submit'], ['submit', '1'], ['back'], ['session', 'ls']]) {
+  for (const args of [['fill', '1', 'hello'], ['submit'], ['submit', '1'], ['back']]) {
     const r = oc([...args, '--session', 'stubs']);
     assert.equal(r.status, 1, args.join(' '));
     assert.equal(r.stdout, '', `${args[0]} printed to stdout`);
@@ -219,4 +220,78 @@ test('flags are accepted anywhere in argv, before or after the command', () => {
   const after = oc(['next', '--session', 'flags']);
   assert.equal(before.status, 0, before.stderr);
   assert.equal(before.stdout, after.stdout);
+});
+
+test('session ls reports nothing saved yet, then names what open saved', () => {
+  const emptyHome = mkdtempSync(join(tmpdir(), 'oc-cli-empty-'));
+  let r = oc(['session', 'ls'], { OC_HOME: emptyHome });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'no saved sessions');
+  seed('first');
+  seed('second');
+  r = oc(['session', 'ls']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^first  https:\/\/example\.test\/news/m);
+  assert.match(r.stdout, /^second  https:\/\/example\.test\/news/m);
+});
+
+test('session ls lists a login that never opened a page, and marks which sessions hold cookies', () => {
+  // 'oc login' writes a jar and no page. That jar is a live credential, so a
+  // listing that only knew about pages would tell an agent auditing leftover
+  // logins that there are none.
+  const home = mkdtempSync(join(tmpdir(), 'oc-cli-jar-'));
+  let r = oc(['login', '--cookie', 'sid=abc', '--domain', 'example.com', '--session', 'jaronly'], { OC_HOME: home });
+  assert.equal(r.status, 0, r.stderr);
+  r = oc(['session', 'ls'], { OC_HOME: home });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'jaronly  [cookies]');
+  r = oc(['session', 'ls', '--json'], { OC_HOME: home });
+  assert.deepEqual(JSON.parse(r.stdout).map((s) => [s.name, s.cookies]), [['jaronly', true]]);
+});
+
+test('session ls skips files oc could not have written, so it never lists what rm cannot remove', () => {
+  const home = mkdtempSync(join(tmpdir(), 'oc-cli-stray-'));
+  const dir = join(home, 'sessions');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, '..json'), '{}');
+  writeFileSync(join(dir, 'notes.txt'), '');
+  mkdirSync(join(dir, 'folder.json'));
+  const r = oc(['session', 'ls'], { OC_HOME: home });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'no saved sessions');
+});
+
+test('session rm forgets the saved page and its cookies, by name or --session', () => {
+  seed('droppable');
+  let r = oc(['login', '--cookie', 'sid=abc', '--domain', 'example.com', '--session', 'droppable']);
+  assert.equal(r.status, 0, r.stderr);
+  const pagePath = join(OC_HOME, 'sessions', 'droppable.json');
+  const jarPath = join(OC_HOME, 'sessions', 'droppable.cookies.json');
+  r = oc(['session', 'rm', 'droppable']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "forgot session 'droppable'");
+  assert.ok(!existsSync(pagePath), 'saved page is gone');
+  assert.ok(!existsSync(jarPath), 'cookie sidecar is gone');
+  seed('viaflag');
+  r = oc(['session', 'rm', '--session', 'viaflag']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!existsSync(join(OC_HOME, 'sessions', 'viaflag.json')));
+});
+
+test('session rm of a name nothing is saved under fails instead of claiming success', () => {
+  const r = oc(['session', 'rm', 'wrok']);
+  assert.equal(r.status, 1);
+  assert.equal(r.stdout, '');
+  assert.equal(r.stderr.trim(), "oc: no such session 'wrok', run oc session ls");
+});
+
+test('session rm refuses a name that is a path or a cookie sidecar, session bogus names its usage', () => {
+  for (const name of ['../escape', 'work.cookies']) {
+    const r = oc(['session', 'rm', name]);
+    assert.equal(r.status, 1, name);
+    assert.match(r.stderr, /^oc: invalid session name/);
+  }
+  const r2 = oc(['session', 'bogus']);
+  assert.equal(r2.status, 1);
+  assert.match(r2.stderr, /^oc: usage: oc session ls\|rm \[name\]/);
 });

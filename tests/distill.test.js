@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { distill, toMarkdown, toHTML, feedToHTML, jsonToHTML, youtubeToHTML, transcriptToHTML, TEXT_CAP } from '../src/distill.js';
 import { render, estimateTokens, contentTokens, contentFailure } from '../src/render.js';
 
-const PAGES = new URL('./pages/', import.meta.url).pathname;
+const PAGES = fileURLToPath(new URL('./pages/', import.meta.url));
 const html = readFileSync(new URL('./pages/news.html', import.meta.url), 'utf8');
 const page = () => distill(html, 'https://example.test/news');
 const feed = readFileSync(new URL('./pages/feed.xml', import.meta.url), 'utf8');

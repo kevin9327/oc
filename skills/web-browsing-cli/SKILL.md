@@ -8,15 +8,17 @@ description: Token-efficient web browsing and web content extraction for AI agen
 Renders a web page as a compact, numbered terminal view instead of raw HTML. A typical page is under 500 tokens.
 
 ```
-npx --yes @only-cli/oc@0.5.3 open <url>     compact view, numbered elements
-npx --yes @only-cli/oc@0.5.3 do <n>         follow link [n], or read it if [n] is text
-npx --yes @only-cli/oc@0.5.3 find <query>   where a string appears, or that place itself
+npx --yes @only-cli/oc@0.5.4 open <url>     compact view, numbered elements
+npx --yes @only-cli/oc@0.5.4 do <n>         follow link [n], or read it if [n] is text
+npx --yes @only-cli/oc@0.5.4 find <query>   where a string appears, or that place itself
                                             when only one matches
-npx --yes @only-cli/oc@0.5.3 next           next ~500 tokens of the page already open
-npx --yes @only-cli/oc@0.5.3 read <n>       full text of region [n]
-npx --yes @only-cli/oc@0.5.3 raw [url]      whole page as markdown (--html for cleaned HTML)
-npx --yes @only-cli/oc@0.5.3 login            seed cookies (--cookie, --domain, --expires)
-npx --yes @only-cli/oc@0.5.3 logout [session] forget a session: cookies and saved page
+npx --yes @only-cli/oc@0.5.4 next           next ~500 tokens of the page already open
+npx --yes @only-cli/oc@0.5.4 read <n>       full text of region [n]
+npx --yes @only-cli/oc@0.5.4 raw [url]      whole page as markdown (--html for cleaned HTML)
+npx --yes @only-cli/oc@0.5.4 login            seed cookies (--cookie, --domain, --expires)
+npx --yes @only-cli/oc@0.5.4 logout [session] forget a session: cookies and saved page
+npx --yes @only-cli/oc@0.5.4 session ls       list saved sessions (name, url, title)
+npx --yes @only-cli/oc@0.5.4 session rm [name] forget a saved session: page and cookies
 ```
 
 None of these except `open`/`do`/`raw <url>` fetch anything; they replay the page `open` already saved.
@@ -86,9 +88,22 @@ oc open https://example.com/dashboard --session work
 oc logout work
 ```
 
+Windows (PowerShell, no `printf`):
+
+```powershell
+$h = 'session=...; auth=...'
+$h | oc login --cookie - --domain example.com --expires 2h --session work
+oc open https://example.com/dashboard --session work
+oc logout work
+```
+
 Pass `--cookie -` and pipe the header in, as above: an inline `--cookie "session=..."` puts a live credential in `ps` and in shell history. Copy the header from browser devtools. `--domain` must be a real hostname; a bare TLD like `com` is refused, since the cookies would then go to every `.com` host the session fetched.
 
 Default lifetime is 1h. Seeded cookies are https-only: they are never sent over plain `http`, including on a redirect that downgrades, unless you seeded them with `--allow-http`. When cookies expire or the site returns a login page, `oc` says so (exit 2) instead of rendering the login form as content. Cookies live in a separate file from page state and are never included in `--json` output. `oc logout` drops that session's saved page along with its cookies.
+
+## Saved sessions live on disk
+
+State is one JSON per session under `~/.only-cli/sessions/` (`%USERPROFILE%\.only-cli\sessions\` on Windows, `OC_HOME` overrides). `session ls` shows what accumulated; `session rm [name]` drops a session's page and cookies (same promise as `logout`). Deleting the directory starts over.
 
 ## When not to use it
 

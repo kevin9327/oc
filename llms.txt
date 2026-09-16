@@ -5,7 +5,7 @@
 Key facts:
 
 - Install: `npm install -g @only-cli/oc`, or zero-install with `npx @only-cli/oc`
-- Commands: `oc open <url>` (compact view with numbered actions), `oc do <n>` (follow numbered link [n], or read [n] when it is text rather than a link), `oc find <query>` (where a string appears on the page already open), `oc read <n>` (one region in full), `oc next` (the next screenful), `oc raw [url]` (whole page as markdown, `--html` for cleaned HTML), `oc --help` for the full surface
+- Commands: `oc open <url>` (compact view with numbered actions), `oc do <n>` (follow numbered link [n], or read [n] when it is text rather than a link), `oc find <query>` (where a string appears on the page already open), `oc read <n>` (one region in full), `oc next` (the next screenful), `oc raw [url]` (whole page as markdown, `--html` for cleaned HTML), `oc session ls|rm [name]` (list or forget saved sessions), `oc --help` for the full surface
 - Default output budget is 500 tokens per page; `--budget <n>` adjusts it, and `find`, `read <n>`, or `next` collect what the budget cut without refetching the page
 - The budget is a target rather than a hard cap: a page that would finish within about four times it is printed whole, because a second command costs the agent far more than the lines the cut would have saved
 - The render leads with the page's main content and puts navigation, sidebar, and footer after it, so the budget is spent on what was asked for rather than on menus

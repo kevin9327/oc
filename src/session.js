@@ -12,9 +12,15 @@
 
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { mkdirSync, readFileSync, writeFileSync, chmodSync, unlinkSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, chmodSync, unlinkSync, readdirSync } from 'node:fs';
 
 export const DEFAULT_SESSION = 'default';
+
+// The cookie sidecar sits next to the page file as `<name>.cookies.json`
+// (see cookies.js). Both modules split filenames on this suffix, so it lives
+// in one place: a rename that reached only one of them would make `session
+// ls` list jars as pages, and `session rm` unlink a jar as a page.
+export const COOKIE_JAR_SUFFIX = '.cookies.json';
 
 // OC_HOME relocates the whole state directory, for sandboxes, CI, and tests.
 export const sessionDir = () => join(process.env.OC_HOME ?? join(homedir(), '.only-cli'), 'sessions');
@@ -25,13 +31,19 @@ export const sessionDir = () => join(process.env.OC_HOME ?? join(homedir(), '.on
 // the store. Names are user-facing labels, so this charset loses nothing real.
 const SAFE_NAME = /^[A-Za-z0-9._-]+$/;
 
+// A name ending in '.cookies' would save its page at `<x>.cookies.json`, the
+// path of session `<x>`'s cookie jar, so `oc logout x` would delete it and
+// `oc session ls` would hide it.
+const isSafeName = (name) => typeof name === 'string' && name !== '.' && name !== '..'
+  && !name.endsWith('.cookies') && SAFE_NAME.test(name);
+
 /**
  * @param {string} name
  * @returns {string} the same name, once it is known to be a safe filename
  */
 export function assertSafeName(name) {
-  if (typeof name !== 'string' || name === '.' || name === '..' || !SAFE_NAME.test(name)) {
-    throw new Error(`invalid session name '${name}', use letters, numbers, '.', '-', or '_'`);
+  if (!isSafeName(name)) {
+    throw new Error(`invalid session name '${name}', use letters, numbers, '.', '-', or '_' (not ending in '.cookies')`);
   }
   return name;
 }
@@ -167,14 +179,19 @@ export function saveSession(name, state) {
  * Drop a saved page. `oc logout` calls this alongside clearing the cookie jar:
  * a snapshot taken under a login holds that page's text, so leaving it behind
  * would make logout mean "the cookies are gone" rather than "nothing of this
- * login remains".
+ * login remains". Only a missing file is fine to ignore: a permission error
+ * or a name that is a directory leaves the page on disk, and the caller is
+ * about to tell the user it is gone.
  * @param {string} name
+ * @returns {boolean} whether a saved page was removed
  */
 export function clearSession(name) {
   try {
     unlinkSync(sessionPath(name));
-  } catch {
-    // nothing saved under that name is fine
+    return true;
+  } catch (err) {
+    if (err?.code === 'ENOENT') return false;
+    throw err;
   }
 }
 
@@ -190,4 +207,44 @@ export function loadSession(name) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Every session on disk, for `oc session ls`: a name is a session when it has
+ * a saved page, a cookie jar, or both, since `oc login` creates a jar without
+ * a page and that credential is exactly what an agent auditing leftover logins
+ * needs to see. An unreadable page is still listed by name: `oc session rm`
+ * can drop it. Only names oc itself could have written are listed, so a stray
+ * `..json` or a directory named like a page never shows up as something rm
+ * then cannot remove.
+ * @returns {{name: string, url: string|null, title: string|null, savedAt: string|null, cookies: boolean}[]}
+ */
+export function listSessions() {
+  let entries;
+  try {
+    entries = readdirSync(sessionDir(), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  /** @type {Map<string, {name: string, url: string|null, title: string|null, savedAt: string|null, cookies: boolean}>} */
+  const byName = new Map();
+  const entry = (name) => {
+    if (!byName.has(name)) byName.set(name, { name, url: null, title: null, savedAt: null, cookies: false });
+    return byName.get(name);
+  };
+  for (const file of entries) {
+    if (!file.isFile()) continue;
+    const jarName = file.name.endsWith(COOKIE_JAR_SUFFIX) ? file.name.slice(0, -COOKIE_JAR_SUFFIX.length) : null;
+    const pageName = jarName == null && file.name.endsWith('.json') ? file.name.slice(0, -'.json'.length) : null;
+    if (jarName != null && isSafeName(jarName)) {
+      entry(jarName).cookies = true;
+    } else if (pageName != null && isSafeName(pageName)) {
+      const info = entry(pageName);
+      const state = loadSession(pageName);
+      info.url = state?.url ?? null;
+      info.title = state?.title ?? null;
+      info.savedAt = state?.savedAt ?? null;
+    }
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }

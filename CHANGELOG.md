@@ -3,7 +3,22 @@
 Notable changes per release. Releases before 0.4.0 are listed at
 [github.com/only-cli/oc/releases](https://github.com/only-cli/oc/releases).
 
-## Unreleased
+## 0.5.4
+
+### Added
+
+- `oc session ls` lists saved sessions (name, url, title, `[cookies]` when a
+  jar is held) and `oc session rm [name]` forgets one: saved page plus
+  cookies, the same promise `oc logout` makes. `rm` fails on an unknown name
+  rather than reporting success. A session name can no longer end in
+  `.cookies`, which collided with the shorter name's cookie sidecar. State
+  lives in `~/.only-cli` (`%USERPROFILE%\.only-cli` on Windows, `OC_HOME`
+  overrides), so agents can now inspect and drop it without guessing paths.
+- Login docs gained a PowerShell equivalent (`$h | oc login --cookie - ...`),
+  since Windows has no `printf`.
+- The CLI test harness resolves the binary with `fileURLToPath`, so the CLI
+  tests can execute on Windows checkouts (`.pathname` breaks on drive-letter
+  paths with spaces). The cookie file-mode test still fails there.
 
 ### Fixed
 

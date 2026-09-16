@@ -5,11 +5,12 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const OC_HOME = mkdtempSync(join(tmpdir(), 'oc-cli-auth-'));
 process.env.OC_HOME = OC_HOME;
 
-const bin = new URL('../src/cli.js', import.meta.url).pathname;
+const bin = fileURLToPath(new URL('../src/cli.js', import.meta.url));
 const loginHtml = readFileSync(new URL('./pages/login.html', import.meta.url), 'utf8');
 const dashHtml = `<html><head><title>Dashboard</title></head><body>
   <h1>Welcome back</h1>

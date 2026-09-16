@@ -7,7 +7,7 @@ import net from 'node:net';
 import { join } from 'node:path';
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, chmodSync } from 'node:fs';
 
-import { sessionDir, assertSafeName } from './session.js';
+import { sessionDir, assertSafeName, COOKIE_JAR_SUFFIX } from './session.js';
 
 const DEFAULT_EXPIRES_MS = 60 * 60 * 1000; // 1h
 export { DEFAULT_EXPIRES_MS };
@@ -53,7 +53,7 @@ function clip(value) {
  * @returns {string}
  */
 export function cookieJarPath(name) {
-  return join(sessionDir(), `${assertSafeName(name)}.cookies.json`);
+  return join(sessionDir(), `${assertSafeName(name)}${COOKIE_JAR_SUFFIX}`);
 }
 
 /**
@@ -265,13 +265,18 @@ export function saveCookieJar(name, jar) {
 }
 
 /**
+ * Only a missing jar is fine to ignore: any other failure leaves a live
+ * credential on disk that the caller may be about to report as gone.
  * @param {string} name
+ * @returns {boolean} whether a jar was removed
  */
 export function clearCookieJar(name) {
   try {
     unlinkSync(cookieJarPath(name));
-  } catch {
-    // missing file is fine
+    return true;
+  } catch (err) {
+    if (err?.code === 'ENOENT') return false;
+    throw err;
   }
 }
 
@@ -287,12 +292,13 @@ export function purgeExpiredJars() {
     return;
   }
   for (const file of readdirSync(dir)) {
-    if (!file.endsWith('.cookies.json')) continue;
-    const name = file.slice(0, -'.cookies.json'.length);
+    if (!file.endsWith(COOKIE_JAR_SUFFIX)) continue;
     try {
       const jar = /** @type {CookieJar} */ (JSON.parse(readFileSync(join(dir, file), 'utf8')));
-      if (isSessionExpired(jar)) clearCookieJar(name);
+      if (isSessionExpired(jar)) unlinkSync(join(dir, file));
     } catch {
+      // A jar that will not parse is as useless as an expired one, and a sweep
+      // that cannot delete a file has nothing to report: the next one retries.
       try { unlinkSync(join(dir, file)); } catch {}
     }
   }

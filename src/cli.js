@@ -10,7 +10,7 @@ import { nodeSearch } from './nodedocs.js';
 import { rdocSearch } from './rdoc.js';
 import { apiSearch } from './apisearch.js';
 import * as act from './act.js';
-import { DEFAULT_SESSION, assertSafeName, clearSession, loadSession, saveSession, sessionFromPage } from './session.js';
+import { DEFAULT_SESSION, assertSafeName, clearSession, listSessions, loadSession, saveSession, sessionFromPage } from './session.js';
 import { authFailure, sessionExpiredMessage } from './auth.js';
 import {
   loadCookieJar,
@@ -42,7 +42,7 @@ usage: oc <command> [args] [flags]
   back                return to the previous page              (planned)
   login               seed cookies for a session (--cookie, --domain)
   logout [session]    forget a session: its cookies and its saved page
-  session ls|rm       manage saved sessions                    (planned)
+  session ls|rm [name]  list saved sessions, or forget one (page + cookies)
 
 flags:
   --budget <tokens>   tighten or loosen the render budget (default 500,
@@ -110,6 +110,21 @@ const noContent = (url, detail, hint = "; 'oc raw' has the page's markdown if th
   // worth printing even when the render failed.
   process.exitCode = NO_CONTENT_EXIT;
 };
+
+/**
+ * Forget everything saved under a name, for `oc logout` and `oc session rm`.
+ * The page saved under a name can be the distilled text of a page only the
+ * cookies could reach, so the two go together: after either command nothing
+ * of that login remains. Cookies go first so a failure on the page file never
+ * leaves the credential behind.
+ * @param {string} name
+ * @returns {boolean} whether anything was on disk to forget
+ */
+function forgetSession(name) {
+  const hadJar = clearCookieJar(name);
+  const hadPage = clearSession(name);
+  return hadJar || hadPage;
+}
 
 const LOGIN_USAGE = 'usage: printf %s "session=..." | oc login --cookie - --domain example.com'
   + ' [--expires 1h] [--session name] [--allow-http]';
@@ -208,11 +223,7 @@ async function main() {
   }
 
   if (command === 'logout') {
-    const name = args[0] ? assertSafeName(args[0]) : sessionName;
-    clearCookieJar(name);
-    // The page saved under this name can be the distilled text of a page only
-    // the cookies could reach, so logout drops it too.
-    clearSession(name);
+    forgetSession(args[0] ? assertSafeName(args[0]) : sessionName);
     return;
   }
 
@@ -365,7 +376,31 @@ async function main() {
     case 'submit': return act.submit(args[0] ? Number(args[0]) : undefined);
     case 'back': return act.back();
     case 'sites': return console.log(listSites());
-    case 'session': throw new act.NotImplemented('session');
+    case 'session': {
+      // Saved sessions accumulate on disk (one JSON per page kept for
+      // do/read/next), so agents can inspect and drop them without guessing
+      // paths under ~/.only-cli. With no name, rm targets --session.
+      const [sub, target] = args;
+      if (sub === 'ls') {
+        const list = listSessions();
+        if (values.json) return console.log(JSON.stringify(list));
+        if (!list.length) return console.log('no saved sessions');
+        for (const s of list) {
+          console.log(`${s.name}${s.url ? `  ${s.url}` : ''}${s.title ? `  (${s.title})` : ''}${s.cookies ? '  [cookies]' : ''}`);
+        }
+        return;
+      }
+      if (sub === 'rm') {
+        const name = target ? assertSafeName(target) : sessionName;
+        // A name nothing was saved under is most likely a typo, and an agent
+        // that reads "forgot session" would move on believing the login is
+        // gone, so rm fails loud instead of succeeding at nothing.
+        if (!forgetSession(name)) throw new Error(`no such session '${name}', run oc session ls`);
+        if (values.json) return console.log(JSON.stringify({ forgotten: name }));
+        return console.log(`forgot session '${name}'`);
+      }
+      throw new Error(`usage: oc session ls|rm [name]`);
+    }
     default:
       throw new Error(`unknown command '${command}', run oc --help`);
   }

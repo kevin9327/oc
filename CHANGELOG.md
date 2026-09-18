@@ -3,6 +3,31 @@
 Notable changes per release. Releases before 0.4.0 are listed at
 [github.com/only-cli/oc/releases](https://github.com/only-cli/oc/releases).
 
+## Unreleased
+
+### Fixed
+
+- The session store is created owner-only (`0700`) and tightened on every save,
+  so a permissive umask no longer leaves `~/.only-cli/sessions` listable or
+  writable by other local accounts. An owner-only cookie jar means nothing
+  inside a directory someone else can unlink from or write to.
+- The cookie file-mode test asks the filesystem whether it stores permission
+  bits instead of checking the platform, so it no longer fails on a Windows
+  checkout (the 0.5.4 known failure) or on a scratch disk without them, and
+  names the skip with its reason rather than asserting something weaker. The
+  page snapshot's mode, which had no test, is covered the same way.
+
+### Changed
+
+- A session can no longer be named after a Win32 device: `con`, `prn`, `aux`,
+  `nul`, `com0`-`com9`, `lpt0`-`lpt9`, or any of those before the first period.
+  Windows reads such a path as the device rather than a file, which would leave
+  a cookie jar on NUL. Node 24 on Windows 11 writes a real file and oc has no
+  failure to show for it, so this guards the name, it does not fix a bug.
+- CI runs the suite on Windows as well as Linux.
+- The README no longer promises mode `0600` on Windows, where the mode carries
+  no secrecy and the directory's ACL is what protects the jar.
+
 ## 0.5.4
 
 ### Added

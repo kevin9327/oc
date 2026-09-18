@@ -25,17 +25,46 @@ export const COOKIE_JAR_SUFFIX = '.cookies.json';
 // OC_HOME relocates the whole state directory, for sandboxes, CI, and tests.
 export const sessionDir = () => join(process.env.OC_HOME ?? join(homedir(), '.only-cli'), 'sessions');
 
+/**
+ * The store directory is what decides who can reach a session: an owner-only
+ * mode on a cookie jar is worth nothing inside a directory another local
+ * account can list, write to, or unlink from, which is what a permissive umask
+ * (0 or 002, the default in some container and CI images) leaves behind. mkdir
+ * applies its mode only to a directory it creates, so one already on disk is
+ * tightened too, the way the files in it are on every save.
+ * @returns {string} the store directory, now present and owner-only
+ */
+export function ensureSessionDir() {
+  const dir = sessionDir();
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try {
+    chmodSync(dir, 0o700);
+  } catch {
+    // A shared OC_HOME that oc does not own keeps the mode it has rather than
+    // failing the save; the files written into it are still owner-only.
+  }
+  return dir;
+}
+
 // A session name is interpolated straight into a filename, and the cookie
 // sidecar it names now holds real credentials, so a name that is a path
 // (absolute, or with a separator or '..') could write or delete a file outside
 // the store. Names are user-facing labels, so this charset loses nothing real.
 const SAFE_NAME = /^[A-Za-z0-9._-]+$/;
 
+// Win32 reads a path component as a device when the part before its first
+// period is a reserved name, which would put session 'nul''s cookie jar on the
+// NUL device rather than in a file. Node 24 on Windows 11 writes a real file
+// there (libuv's path handling sidesteps the rule, tested both ways), so this
+// guards the name rather than fixing a failure oc has today: an older Windows,
+// another runtime, or a path that reaches a shell still reads them as devices.
+const DEVICE_NAME = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/i;
+
 // A name ending in '.cookies' would save its page at `<x>.cookies.json`, the
 // path of session `<x>`'s cookie jar, so `oc logout x` would delete it and
 // `oc session ls` would hide it.
 const isSafeName = (name) => typeof name === 'string' && name !== '.' && name !== '..'
-  && !name.endsWith('.cookies') && SAFE_NAME.test(name);
+  && !name.endsWith('.cookies') && !DEVICE_NAME.test(name.split('.')[0]) && SAFE_NAME.test(name);
 
 /**
  * @param {string} name
@@ -43,7 +72,7 @@ const isSafeName = (name) => typeof name === 'string' && name !== '.' && name !=
  */
 export function assertSafeName(name) {
   if (!isSafeName(name)) {
-    throw new Error(`invalid session name '${name}', use letters, numbers, '.', '-', or '_' (not ending in '.cookies')`);
+    throw new Error(`invalid session name '${name}', use letters, numbers, '.', '-', or '_' (not ending in '.cookies', not a device name like 'nul')`);
   }
   return name;
 }
@@ -165,7 +194,7 @@ export function handleNumbers(state) {
  * @param {object} state
  */
 export function saveSession(name, state) {
-  mkdirSync(sessionDir(), { recursive: true });
+  ensureSessionDir();
   // A snapshot of an authenticated page holds that page's text, so it gets the
   // same owner-only mode as the cookie sidecar. writeFileSync only sets the
   // mode on create, so a snapshot left world-readable by an older version is

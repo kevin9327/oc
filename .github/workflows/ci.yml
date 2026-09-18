@@ -12,7 +12,14 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The store's file modes, the paths oc builds from a session name, and the
+    # binary the CLI tests spawn all behave differently on Windows, so the
+    # suite runs there too rather than resting on a contributor's local run.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

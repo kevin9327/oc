@@ -5,9 +5,9 @@
 
 import net from 'node:net';
 import { join } from 'node:path';
-import { mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, chmodSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync, readdirSync, chmodSync } from 'node:fs';
 
-import { sessionDir, assertSafeName, COOKIE_JAR_SUFFIX } from './session.js';
+import { sessionDir, ensureSessionDir, assertSafeName, COOKIE_JAR_SUFFIX } from './session.js';
 
 const DEFAULT_EXPIRES_MS = 60 * 60 * 1000; // 1h
 export { DEFAULT_EXPIRES_MS };
@@ -256,7 +256,7 @@ export function loadCookieJar(name) {
  * @param {CookieJar} jar
  */
 export function saveCookieJar(name, jar) {
-  mkdirSync(sessionDir(), { recursive: true });
+  ensureSessionDir();
   // writeFileSync only sets the mode on create, so an existing sidecar has its
   // owner-only mode reasserted on every save.
   const path = cookieJarPath(name);

@@ -16,6 +16,12 @@ Notable changes per release. Releases before 0.4.0 are listed at
   checkout (the 0.5.4 known failure) or on a scratch disk without them, and
   names the skip with its reason rather than asserting something weaker. The
   page snapshot's mode, which had no test, is covered the same way.
+- A page served in another encoding than UTF-8 (Shift_JIS, EUC-KR, GBK,
+  windows-1252) reads as its text instead of a run of U+FFFD. The charset comes
+  from the Content-Type header, then the page's `<meta>` tag or a feed's XML
+  declaration, on every transport; a page that declares none is still UTF-8.
+  A UTF-8 byte order mark is dropped, so a JSON answer that starts with one
+  parses.
 
 ### Changed
 

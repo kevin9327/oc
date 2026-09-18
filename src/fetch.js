@@ -73,6 +73,45 @@ export function assertReadableType(type) {
   throw new Error(`not a page oc can read (${type.split(';')[0].trim()}), it renders HTML, XML feeds, JSON, and plain text`);
 }
 
+// A body read as UTF-8 whatever it declares turns each non-ASCII character of
+// a Shift_JIS, EUC-KR, GBK, or windows-1252 page into U+FFFD, noise an agent
+// pays for and cannot read. So the encoding is looked for where a browser
+// looks: the Content-Type header, then a <meta> tag, which the HTML spec
+// requires within the first 1024 bytes, or a feed's XML declaration.
+const CHARSET_PARAM = /;\s*charset\s*=\s*["']?([^"';\s]+)/i;
+const META_CHARSET = /<meta\b[^>]*?\bcharset\s*=\s*["']?\s*([^"'\s;/>]+)/i;
+const XML_ENCODING = /^\s*<\?xml\b[^>]*?\bencoding\s*=\s*["']([^"']+)/;
+
+// TextDecoder knows the labels browsers do, so no dependency is needed, and it
+// refuses the ones they do not, which then fall through to the next place a
+// label can come from.
+const decoderFor = (label) => {
+  try {
+    return label ? new TextDecoder(label) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * A body as text in the encoding it declares, header first, then the page.
+ * With neither, or only labels no browser knows, it is UTF-8, which is what
+ * oc assumed for every page before.
+ * @param {Buffer} bytes
+ * @param {string | null | undefined} type - the content-type header
+ * @returns {string}
+ */
+export function decodeBody(bytes, type) {
+  const head = bytes.toString('latin1', 0, 1024);
+  const inPage = decoderFor(head.match(XML_ENCODING)?.[1] ?? head.match(META_CHARSET)?.[1]);
+  // A label found by reading the bytes as ASCII cannot be UTF-16, whose ASCII
+  // is interleaved with zero bytes, so the HTML spec reads that claim as UTF-8.
+  const decoder = decoderFor(type?.match(CHARSET_PARAM)?.[1])
+    ?? (inPage?.encoding.startsWith('utf-16') ? null : inPage)
+    ?? new TextDecoder();
+  return decoder.decode(bytes);
+}
+
 // IPv4 ranges with no business receiving a server-initiated fetch: loopback,
 // link-local, the three RFC 1918 private blocks, carrier-grade NAT, the
 // unspecified/broadcast addresses, and the documentation/benchmark ranges.
@@ -355,7 +394,7 @@ function wrapNodeResponse(res, url) {
       }
       chunks.push(c);
     });
-    res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    res.on('end', () => resolve(decodeBody(Buffer.concat(chunks), headers.get('content-type'))));
     res.on('error', reject);
   });
   const status = res.statusCode ?? 0;
@@ -664,8 +703,12 @@ export async function viaImpers(impers, target, jar) {
   assertBodySize(Number(res.headers.get('content-length')) || 0, target);
   // impers buffers inside its own binding, so the size of what it already
   // holds is all there is to check; the bound still stops an oversized body
-  // from travelling any further.
-  const html = typeof res.text === 'function' ? await res.text() : String(res.text ?? res.body ?? '');
+  // from travelling any further. impers decodes a few Western charsets itself
+  // and reads every other one as UTF-8, so the bytes it keeps in `content` are
+  // decoded here instead, the way the fetch transport's are.
+  const html = Buffer.isBuffer(res.content)
+    ? decodeBody(res.content, res.headers.get('content-type'))
+    : typeof res.text === 'function' ? await res.text() : String(res.text ?? res.body ?? '');
   assertBodySize(html.length, target);
   return { url: res.url ?? target, html, status, via };
 }
@@ -706,5 +749,5 @@ export async function readBody(res, url) {
     assertBodySize(size, url);
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks).toString('utf8');
+  return decodeBody(Buffer.concat(chunks), res.headers.get('content-type'));
 }

@@ -181,7 +181,12 @@ test('saveCookieJar writes with mode 0600 and loadCookieJar reads back', () => {
   clearCookieJar('work');
   const jar = jarFromCookieHeader('token=secret', 'example.com', { expiresMs: 3_600_000 });
   saveCookieJar('work', jar);
-  const mode = statSync(cookieJarPath('work')).mode & 0o777;
+  // Windows has no group or other bits. Node derives all nine from the
+  // read-only attribute, so a writable file always reports 0o666, and who else
+  // can read it is decided by the ACL the file inherits from its directory.
+  // The owner bits are the only part of the mode that means anything there.
+  const mask = process.platform === 'win32' ? 0o700 : 0o777;
+  const mode = statSync(cookieJarPath('work')).mode & mask;
   assert.equal(mode, 0o600);
   const loaded = loadCookieJar('work');
   assert.equal(loaded.cookies[0].value, 'secret');

@@ -813,6 +813,43 @@ test('with no usable charset in the header the page declares its own, and UTF-8 
   assert.equal(await read(Buffer.from('\uFEFF{"ok":true}'), 'application/json'), '{"ok":true}');
 });
 
+test('a charset the page never declared is not taken from it', async () => {
+  const { readBody } = await import('../src/fetch.js');
+  const read = (body, type = 'text/html') =>
+    readBody(new Response(body, { headers: { 'content-type': type } }), 'https://example.test/');
+  // Every page here is UTF-8 and read correctly before any of this existed.
+  // Each head writes a legacy label where a browser's prescan takes none, so
+  // a scan that honored one would turn a readable page into mojibake.
+  const page = (head) => `${head}<p>caf\u00E9 \u65E5\u672C\u8A9E</p>`;
+  for (const head of [
+    '<!-- <meta charset="shift_jis"> -->',
+    '<script>var s = "<meta charset=gbk>";</script>',
+    '<a title="<meta charset=gbk>"></a>',
+    '<div data-charset="euc-kr"></div>',
+    '<meta property="og:url" content="https://example.test/?charset=gbk">',
+    '<meta name="description" content="a note about charset=gbk pages">',
+  ]) {
+    assert.equal(await read(Buffer.from(page(head))), page(head), head);
+  }
+
+  // A declaration that follows a comment is still the page's own.
+  const [sjis, japanese] = LEGACY.shift_jis;
+  const head = '<!-- a note --><meta charset="Shift_JIS">';
+  assert.equal(await read(legacyPage(head, sjis)), `${head}<p>${japanese}</p>`);
+
+  // Only markup declares an encoding in its own text: the same <meta> in plain
+  // text or JavaScript is a string, not a declaration.
+  const plain = '<meta charset="gbk"> caf\u00E9';
+  assert.equal(await read(Buffer.from(plain), 'text/plain'), plain);
+  assert.equal(await read(Buffer.from(plain), 'application/javascript'), plain);
+
+  // JSON is UTF-8 by definition, so a charset parameter on it is a label the
+  // server is wrong about, and honoring it feeds JSON.parse mojibake.
+  const json = '{"t":"caf\u00E9"}';
+  assert.equal(await read(Buffer.from(json), 'application/json; charset=iso-8859-1'), json);
+  assert.equal(await read(Buffer.from(json), 'application/ld+json; charset=us-ascii'), json);
+});
+
 // A stand-in for the impers module whose get() either answers with a minimal
 // 200 page or refuses the identity the way impers does when the loaded native
 // library does not know the fingerprint an alias resolves to: it throws an

@@ -79,12 +79,22 @@ export function assertReadableType(type) {
 // looks: the Content-Type header, then a <meta> tag, which the HTML spec
 // requires within the first 1024 bytes, or a feed's XML declaration.
 const CHARSET_PARAM = /;\s*charset\s*=\s*["']?([^"';\s]+)/i;
-const META_CHARSET = /<meta\b[^>]*?\bcharset\s*=\s*["']?\s*([^"'\s;/>]+)/i;
 const XML_ENCODING = /^\s*<\?xml\b[^>]*?\bencoding\s*=\s*["']([^"']+)/;
+// One tag's attributes, quoted values kept whole, so a charset written inside
+// another attribute's value (an og:url carrying a query string, say) stays
+// part of that value instead of reading as a declaration.
+const ATTRS = /([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s>]*))?/g;
+// Only markup declares an encoding in its own text, so only markup is read for
+// one. JSON is UTF-8 by definition (RFC 8259), which is why a browser ignores
+// a charset on it, and plain text or JavaScript carries no declaration a
+// scan could find, only strings that look like one.
+const MARKUP_TYPE = /^\s*(?:text\/(?:html|xml)|application\/(?:xml|[\w.+-]*\+xml))/i;
+const JSON_TYPE = /^\s*(?:application\/(?:json|x-ndjson|[\w.+-]*\+json)|text\/json)/i;
 
 // TextDecoder knows the labels browsers do, so no dependency is needed, and it
 // refuses the ones they do not, which then fall through to the next place a
 // label can come from.
+const UTF8 = new TextDecoder();
 const decoderFor = (label) => {
   try {
     return label ? new TextDecoder(label) : null;
@@ -92,6 +102,48 @@ const decoderFor = (label) => {
     return null;
   }
 };
+
+/**
+ * The charset one <meta> tag declares: the attribute browsers read first, then
+ * the older http-equiv form, which only counts on a content-type, not on any
+ * content attribute that happens to mention a charset.
+ * @param {string} tag
+ * @returns {string | null}
+ */
+function metaLabel(tag) {
+  const attrs = new Map();
+  for (const [, name, value = ''] of tag.slice('<meta'.length).matchAll(ATTRS)) {
+    attrs.set(name.toLowerCase(), value.replace(/^(["'])([\s\S]*)\1$/, '$2').trim());
+  }
+  const charset = attrs.get('charset');
+  if (charset) return charset;
+  if (attrs.get('http-equiv')?.toLowerCase() !== 'content-type') return null;
+  return attrs.get('content')?.match(CHARSET_PARAM)?.[1] ?? null;
+}
+
+/**
+ * The charset a page declares, read the way a browser's prescan reads it
+ * rather than with one regex over the head: a label written inside a comment,
+ * a <script> string, or another tag's attribute is not a declaration, and
+ * decoding by one of those is how a page that was already readable turns to
+ * mojibake.
+ * @param {string} head - the first 1024 bytes as latin1
+ * @returns {string | null}
+ */
+function labelInPage(head) {
+  const xml = head.match(XML_ENCODING)?.[1];
+  if (xml) return xml;
+  const markup = head
+    .replace(/<!--[\s\S]*?(?:-->|$)/g, ' ')
+    .replace(/<script\b[\s\S]*?(?:<\/script>|$)/gi, ' ');
+  // Every tag is consumed whole, so a <meta> written inside a quoted attribute
+  // value belongs to the tag quoting it and is never read as a tag itself.
+  for (const [tag] of markup.matchAll(/<[a-zA-Z][^>]*>?/g)) {
+    const label = /^<meta\b/i.test(tag) ? metaLabel(tag) : null;
+    if (label) return label;
+  }
+  return null;
+}
 
 /**
  * A body as text in the encoding it declares, header first, then the page.
@@ -102,14 +154,16 @@ const decoderFor = (label) => {
  * @returns {string}
  */
 export function decodeBody(bytes, type) {
-  const head = bytes.toString('latin1', 0, 1024);
-  const inPage = decoderFor(head.match(XML_ENCODING)?.[1] ?? head.match(META_CHARSET)?.[1]);
+  const declared = JSON_TYPE.test(type ?? '') ? null : decoderFor(type?.match(CHARSET_PARAM)?.[1]);
+  if (declared) return declared.decode(bytes);
+  // A missing header is not a refusal anywhere else in oc and is common on
+  // small servers, so a body that names no type is still read for one.
+  if (type && !MARKUP_TYPE.test(type)) return UTF8.decode(bytes);
+  const inPage = decoderFor(labelInPage(bytes.toString('latin1', 0, 1024)));
   // A label found by reading the bytes as ASCII cannot be UTF-16, whose ASCII
   // is interleaved with zero bytes, so the HTML spec reads that claim as UTF-8.
-  const decoder = decoderFor(type?.match(CHARSET_PARAM)?.[1])
-    ?? (inPage?.encoding.startsWith('utf-16') ? null : inPage)
-    ?? new TextDecoder();
-  return decoder.decode(bytes);
+  if (!inPage || inPage.encoding.startsWith('utf-16')) return UTF8.decode(bytes);
+  return inPage.decode(bytes);
 }
 
 // IPv4 ranges with no business receiving a server-initiated fetch: loopback,

@@ -3,6 +3,14 @@
 Notable changes per release. Releases before 0.4.0 are listed at
 [github.com/only-cli/oc/releases](https://github.com/only-cli/oc/releases).
 
+## Unreleased
+
+### Fixed
+
+- An icon link (an image, or an empty anchor with aria-label or title) is
+  still a numbered link. Those names already worked on icon buttons; without
+  them a logo or icon had no textContent and `oc do` could not follow it.
+
 ## 0.5.5
 
 ### Fixed

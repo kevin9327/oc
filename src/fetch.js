@@ -78,7 +78,10 @@ export function assertReadableType(type) {
 // pays for and cannot read. So the encoding is looked for where a browser
 // looks: the Content-Type header, then a <meta> tag, which the HTML spec
 // requires within the first 1024 bytes, or a feed's XML declaration.
-const CHARSET_PARAM = /;\s*charset\s*=\s*["']?([^"';\s]+)/i;
+// The comma is excluded because a duplicated Content-Type header arrives from
+// headers.get as one value joined by ", ", and a label with a comma stuck to
+// its end is one TextDecoder refuses.
+const CHARSET_PARAM = /;\s*charset\s*=\s*["']?([^"';,\s]+)/i;
 const XML_ENCODING = /^\s*<\?xml\b[^>]*?\bencoding\s*=\s*["']([^"']+)/;
 // One tag's attributes, quoted values kept whole, so a charset written inside
 // another attribute's value (an og:url carrying a query string, say) stays
@@ -122,16 +125,17 @@ function metaLabel(tag) {
 }
 
 /**
- * The charset a page declares, read the way a browser's prescan reads it
+ * The decoder a page asks for, read the way a browser's prescan reads it
  * rather than with one regex over the head: a label written inside a comment,
  * a <script> string, or another tag's attribute is not a declaration, and
  * decoding by one of those is how a page that was already readable turns to
- * mojibake.
+ * mojibake. A label TextDecoder refuses is not the end of the search, so a
+ * feed declaring `cp949` still gets the <meta> tag underneath it.
  * @param {string} head - the first 1024 bytes as latin1
- * @returns {string | null}
+ * @returns {TextDecoder | null}
  */
-function labelInPage(head) {
-  const xml = head.match(XML_ENCODING)?.[1];
+function decoderInPage(head) {
+  const xml = decoderFor(head.match(XML_ENCODING)?.[1]);
   if (xml) return xml;
   const markup = head
     .replace(/<!--[\s\S]*?(?:-->|$)/g, ' ')
@@ -139,8 +143,8 @@ function labelInPage(head) {
   // Every tag is consumed whole, so a <meta> written inside a quoted attribute
   // value belongs to the tag quoting it and is never read as a tag itself.
   for (const [tag] of markup.matchAll(/<[a-zA-Z][^>]*>?/g)) {
-    const label = /^<meta\b/i.test(tag) ? metaLabel(tag) : null;
-    if (label) return label;
+    const decoder = /^<meta\b/i.test(tag) ? decoderFor(metaLabel(tag)) : null;
+    if (decoder) return decoder;
   }
   return null;
 }
@@ -159,7 +163,7 @@ export function decodeBody(bytes, type) {
   // A missing header is not a refusal anywhere else in oc and is common on
   // small servers, so a body that names no type is still read for one.
   if (type && !MARKUP_TYPE.test(type)) return UTF8.decode(bytes);
-  const inPage = decoderFor(labelInPage(bytes.toString('latin1', 0, 1024)));
+  const inPage = decoderInPage(bytes.toString('latin1', 0, 1024));
   // A label found by reading the bytes as ASCII cannot be UTF-16, whose ASCII
   // is interleaved with zero bytes, so the HTML spec reads that claim as UTF-8.
   if (!inPage || inPage.encoding.startsWith('utf-16')) return UTF8.decode(bytes);
@@ -707,6 +711,17 @@ export function identityOrder(target) {
   return firefoxFirst ? ['firefox', 'chrome'] : ['chrome', 'firefox'];
 }
 
+// impers throws out of its own `content` getter when a response is streaming
+// instead of buffered, so the question has to be asked inside a try: the answer
+// is the bytes it holds, or nothing, never an error from a getter.
+const bufferedContent = (res) => {
+  try {
+    return Buffer.isBuffer(res.content) ? res.content : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Fetch a page through impers, downgrading identity when one is refused.
  * Exported so the downgrade chain can be proven against a fake impers; the
@@ -760,9 +775,16 @@ export async function viaImpers(impers, target, jar) {
   // from travelling any further. impers decodes a few Western charsets itself
   // and reads every other one as UTF-8, so the bytes it keeps in `content` are
   // decoded here instead, the way the fetch transport's are.
-  const html = Buffer.isBuffer(res.content)
-    ? decodeBody(res.content, res.headers.get('content-type'))
-    : typeof res.text === 'function' ? await res.text() : String(res.text ?? res.body ?? '');
+  const bytes = bufferedContent(res);
+  if (bytes) {
+    // What arrived, not what it decodes to: a CJK page is about half as many
+    // characters as it is bytes, and with the Content-Length above optional
+    // this is the only size this transport ever really checks. Refused before
+    // the decode so an oversized body is not allocated twice over.
+    assertBodySize(bytes.length, target);
+    return { url: res.url ?? target, html: decodeBody(bytes, res.headers.get('content-type')), status, via };
+  }
+  const html = typeof res.text === 'function' ? await res.text() : String(res.text ?? res.body ?? '');
   assertBodySize(html.length, target);
   return { url: res.url ?? target, html, status, via };
 }

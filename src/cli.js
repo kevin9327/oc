@@ -272,7 +272,7 @@ async function main() {
         const processMs = performance.now() - t0 - fetchMs;
         const rss = process.memoryUsage().rss;
         return `HTTP ${status} via ${via}, fetch ${Math.round(fetchMs)}ms, process ${Math.round(processMs)}ms, `
-          + `${Math.round(html.length / 1024)}KB transferred, ${Math.round(rss / 1048576)}MB memory`;
+          + `${Math.round(Buffer.byteLength(html) / 1024)}KB transferred, ${Math.round(rss / 1048576)}MB memory`;
       };
       const htmlTokens = estimateTokens(html);
       if (values.json) {

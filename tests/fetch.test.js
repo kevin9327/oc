@@ -850,6 +850,65 @@ test('a charset the page never declared is not taken from it', async () => {
   assert.equal(await read(Buffer.from(json), 'application/ld+json; charset=us-ascii'), json);
 });
 
+test('a header sent twice and a declaration no browser knows still reach the right decoder', async () => {
+  const { readBody } = await import('../src/fetch.js');
+  const [euckr, korean] = LEGACY.euc_kr;
+  const [cp1252, french] = LEGACY.windows_1252;
+
+  // A server that sends Content-Type twice gives one value joined by ", ",
+  // which used to leave a comma stuck to the label and no decoder for it.
+  const twice = new Response(legacyPage('', cp1252), {
+    headers: [
+      ['content-type', 'text/html; charset=windows-1252'],
+      ['content-type', 'text/html; charset=windows-1252'],
+    ],
+  });
+  assert.match(twice.headers.get('content-type'), /,/);
+  assert.equal(await readBody(twice, 'https://example.test/'), `<p>${french}</p>`);
+
+  // cp949 is Windows' name for EUC-KR and no browser knows it, so the search
+  // goes on to the <meta> underneath rather than stopping at a dead label.
+  const head = '<?xml version="1.0" encoding="cp949"?><meta charset="euc-kr">';
+  const res = new Response(legacyPage(head, euckr), { headers: { 'content-type': 'application/xml' } });
+  assert.equal(await readBody(res, 'https://example.test/'), `${head}<p>${korean}</p>`);
+});
+
+test('the impers transport counts the bytes that arrived, not the characters they decode to', async () => {
+  // 26MB of Shift_JIS is 13M characters, half of what landed, so a cap read
+  // off the decoded string lets a body through at twice the size it names.
+  const content = Buffer.alloc(26 * 1024 * 1024).fill(Buffer.from('93fa', 'hex'));
+  const impers = {
+    get: async (url) => ({
+      status: 200,
+      url,
+      headers: new Map([['content-type', 'text/html; charset=Shift_JIS']]),
+      content,
+    }),
+  };
+  await assert.rejects(
+    () => withoutProxyEnv(() => viaImpers(impers, 'https://public.example/big')),
+    /more than oc will read/,
+  );
+});
+
+test('a streaming impers response is read through its text, not through the getter that throws', async () => {
+  // impers throws out of `content` when it holds no buffered body, so asking
+  // whether there are bytes cannot be the thing that ends the fetch.
+  const impers = {
+    get: async (url) => ({
+      status: 200,
+      url,
+      headers: new Map([['content-type', 'text/html']]),
+      get content() {
+        throw new Error('Response content not available. Use await response.aContent()');
+      },
+      text: async () => '<p>streamed</p>',
+    }),
+  };
+  const page = await withoutProxyEnv(() => viaImpers(impers, 'https://public.example/stream'));
+  assert.equal(page.html, '<p>streamed</p>');
+});
+
 // A stand-in for the impers module whose get() either answers with a minimal
 // 200 page or refuses the identity the way impers does when the loaded native
 // library does not know the fingerprint an alias resolves to: it throws an

@@ -22,6 +22,15 @@ Notable changes per release. Releases before 0.4.0 are listed at
   declaration, on every transport; a page that declares none is still UTF-8.
   A UTF-8 byte order mark is dropped, so a JSON answer that starts with one
   parses.
+- A charset survives a Content-Type header the server sent twice, where the
+  two values arrive joined by a comma, and a declaration no browser knows
+  (a feed's `encoding="cp949"`) falls through to the page's `<meta>` rather
+  than ending the search.
+- The impers transport measures a body against the size cap in the bytes that
+  arrived, not the characters they decode to, so a page in a CJK encoding no
+  longer counts as half its size, and a streaming response is read through its
+  text instead of a getter that throws when nothing is buffered. `--verbose`
+  counts the body's bytes for the same reason.
 
 ### Changed
 

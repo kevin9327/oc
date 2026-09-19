@@ -10,6 +10,11 @@ Notable changes per release. Releases before 0.4.0 are listed at
 - An icon link (an image, or an empty anchor with aria-label or title) is
   still a numbered link. Those names already worked on icon buttons; without
   them a logo or icon had no textContent and `oc do` could not follow it.
+- An RSS 2.0 entry is opened by the URL in its `<link>` text. The HTML parser
+  treats `<link>` as void, so that URL was never read, and `oc do` followed the
+  guid instead: a WordPress-style id (`isPermaLink="false"`) or nothing when
+  the item had no guid, which is how HN's feed is written. The full post in
+  `content:encoded` is rendered rather than the excerpt in `description`.
 
 ## 0.5.5
 

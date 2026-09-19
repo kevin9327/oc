@@ -498,19 +498,44 @@ export function feedToHTML(text) {
   // <category /> stay open and swallow their siblings. Descendant queries
   // still land, because a closing </entry> or </item> pops the whole pile.
   const field = (el, sel) => clean(el.querySelector(sel)?.textContent ?? '');
+  // HTML treats <link> as void, so an RSS 2.0 URL written as the element's
+  // text is not in textContent: the parser closes the tag immediately and the
+  // URL sits in the following text node. Skipping that node made `do` on a
+  // WordPress or HN item follow the guid instead, which is often an internal
+  // id, or follow nothing when the item has no guid at all.
+  const rssLink = (entry) => {
+    const link = entry.querySelector('link');
+    if (!link || link.getAttribute('href')) return '';
+    let n = link.nextSibling;
+    while (n && n.nodeType === 3 && !/\S/.test(n.textContent ?? '')) n = n.nextSibling;
+    const text = n?.nodeType === 3 ? clean(n.textContent ?? '') : '';
+    return text && !/\s/.test(text) ? text : '';
+  };
   const feedTitle = field(root, 'title');
   const parts = [];
   for (const entry of root.querySelectorAll('entry, item')) {
     const title = field(entry, 'title');
+    // Atom puts the URL on link href. RSS 2.0 writes it as <link> text, which
+    // rssLink reads. guid is only a permalink when it says so (the default),
+    // and isPermaLink="false" means the value is an id, not a URL.
+    const guid = entry.querySelector('guid');
+    const guidIsPermalink = !guid
+      || (guid.getAttribute('ispermalink') ?? 'true').toLowerCase() !== 'false';
     const href = entry.querySelector('link[rel="alternate"]')?.getAttribute('href')
-      ?? entry.querySelector('link[href]')?.getAttribute('href')
-      ?? field(entry, 'guid');
+      || entry.querySelector('link[href]')?.getAttribute('href')
+      || rssLink(entry)
+      || (guidIsPermalink ? field(entry, 'guid') : '');
     const author = field(entry, 'author name') || field(entry, 'author');
     const date = (field(entry, 'updated') || field(entry, 'published') || field(entry, 'pubdate')).slice(0, 10);
     const byline = [author && `by ${author}`, date].filter(Boolean).join(', ');
     // Atom escapes the entry body, so textContent of content/summary is the
     // HTML itself, ready to be embedded and parsed like any page.
-    const body = (entry.querySelector('content') ?? entry.querySelector('summary') ?? entry.querySelector('description'))?.textContent ?? '';
+    // RSS 2.0 keeps the full post in content:encoded and the excerpt in
+    // description, so the encoded body has to win or a feed is only ledes.
+    const body = (entry.querySelector('content\\:encoded')
+      ?? entry.querySelector('content')
+      ?? entry.querySelector('summary')
+      ?? entry.querySelector('description'))?.textContent ?? '';
     parts.push('<article>');
     // The title is the link. It used to sit beside the byline as an anchor
     // labelled "open", the same label on every entry, and the repeated-controls

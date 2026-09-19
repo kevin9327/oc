@@ -208,9 +208,28 @@ test('rss with cdata bodies converts too, ordinary html does not', () => {
     </channel></rss>`;
   const p = distill(rss, 'https://example.test/rss');
   assert.equal(p.title, 'Fixture Blog');
+  // An item can carry no <link> at all, and then a guid that says nothing is
+  // the permalink it defaults to being. Asserting the href is what catches a
+  // fallback arm that stopped being reached.
+  assert.equal(p.blocks.find((b) => b.type === 'heading').href, 'https://example.test/p/1');
   const text = p.blocks.map((b) => b.text).join(' ');
   assert.ok(text.includes('A cdata body with markup.'), 'cdata body missing');
   assert.equal(feedToHTML(html), null, 'ordinary html misread as a feed');
+});
+
+test('an RSS 2.0 entry is opened by its link, not a non-permalink guid', () => {
+  // WordPress and HN write the item URL as the text of <link>. guid is often
+  // an internal id with isPermaLink="false", and content:encoded is the post
+  // while description is the excerpt.
+  const rss = readFileSync(new URL('./pages/rss20.xml', import.meta.url), 'utf8');
+  const p = distill(rss, 'https://blog.example.test/feed.xml');
+  const headings = p.blocks.filter((b) => b.type === 'heading');
+  assert.equal(headings[0].href, 'https://blog.example.test/hello-world');
+  assert.equal(headings[1].href, 'https://blog.example.test/no-guid');
+  const text = p.blocks.map((b) => b.text).join(' ');
+  assert.ok(text.includes('The full post body.'), 'content:encoded body missing');
+  assert.ok(!text.includes('The lede, not the post.'), 'excerpt used instead of the full body');
+  assert.ok(text.includes('Second lede.'), 'item without content:encoded lost its description');
 });
 
 test('a youtube watch page renders as title, byline, description, and transcript links', () => {

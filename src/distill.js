@@ -514,9 +514,9 @@ export function feedToHTML(text) {
     const guidIsPermalink = !guid
       || (guid.getAttribute('ispermalink') ?? 'true').toLowerCase() !== 'false';
     const href = entry.querySelector('link[rel="alternate"]')?.getAttribute('href')
-      ?? entry.querySelector('link[href]')?.getAttribute('href')
-      ?? rssLink(entry)
-      ?? (guidIsPermalink ? field(entry, 'guid') : '');
+      || entry.querySelector('link[href]')?.getAttribute('href')
+      || rssLink(entry)
+      || (guidIsPermalink ? field(entry, 'guid') : '');
     const author = field(entry, 'author name') || field(entry, 'author');
     const date = (field(entry, 'updated') || field(entry, 'published') || field(entry, 'pubdate')).slice(0, 10);
     const byline = [author && `by ${author}`, date].filter(Boolean).join(', ');

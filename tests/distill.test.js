@@ -208,6 +208,10 @@ test('rss with cdata bodies converts too, ordinary html does not', () => {
     </channel></rss>`;
   const p = distill(rss, 'https://example.test/rss');
   assert.equal(p.title, 'Fixture Blog');
+  // An item can carry no <link> at all, and then a guid that says nothing is
+  // the permalink it defaults to being. Asserting the href is what catches a
+  // fallback arm that stopped being reached.
+  assert.equal(p.blocks.find((b) => b.type === 'heading').href, 'https://example.test/p/1');
   const text = p.blocks.map((b) => b.text).join(' ');
   assert.ok(text.includes('A cdata body with markup.'), 'cdata body missing');
   assert.equal(feedToHTML(html), null, 'ordinary html misread as a feed');

@@ -321,6 +321,21 @@ test('an icon button is named by its aria-label, a nameless one is dropped', () 
   assert.equal(one.text, 'Reply');
 });
 
+test('an icon link is still a link, named from alt, aria-label, or title', () => {
+  // Buttons already take aria-label and title because an icon has no text.
+  // An anchor around an image is the same shape: img alt is the accessible
+  // name and is not a text node, so textContent is empty and the link used
+  // to be dropped. Visible text still wins when the anchor has any.
+  const p = distill(readFileSync(new URL('./pages/icon_links.html', import.meta.url), 'utf8'), 'https://example.test/');
+  const links = p.blocks.filter((b) => b.type === 'link');
+  assert.deepEqual(links.map((l) => [l.text, l.href]), [
+    ['Home', '/home'],
+    ['Profile', '/me'],
+    ['Settings', '/cfg'],
+    ['About', '/about'],
+  ]);
+});
+
 test('per item buttons repeat sooner than links before they count as furniture', () => {
   const blocks = social().blocks;
   // Six posts, six sets of Reply/Repost/Like/Bookmark/Share/More.

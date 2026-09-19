@@ -221,7 +221,15 @@ export function distill(html, url = '') {
       return;
     }
     if (tag === 'a' && node.getAttribute('href')) {
-      const text = clean(node.textContent);
+      // An icon button already takes aria-label or title because it has no
+      // text. An anchor around an image is the same shape: img alt is the
+      // accessible name and is not a text node, so textContent is empty and
+      // the link used to be dropped. Visible text still wins when there is
+      // any, because that is what the page wrote for a reader.
+      const text = clean(node.textContent)
+        || clean(node.getAttribute('aria-label') ?? '')
+        || clean(node.getAttribute('title') ?? '')
+        || clean(node.querySelector('img')?.getAttribute('alt') ?? '');
       if (text) {
         blocks.push({ type: 'link', text, href: node.getAttribute('href') });
       }

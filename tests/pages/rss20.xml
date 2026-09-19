@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Fixture Blog</title>
+    <link>https://blog.example.test/</link>
+    <description>A WordPress-shaped RSS 2.0 feed</description>
+    <item>
+      <title>Hello World</title>
+      <link>https://blog.example.test/hello-world</link>
+      <guid isPermaLink="false">abc-123</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 GMT</pubDate>
+      <description>The lede, not the post.</description>
+      <content:encoded><![CDATA[<p>The full post body.</p>]]></content:encoded>
+    </item>
+    <item>
+      <title>No guid either</title>
+      <link>https://blog.example.test/no-guid</link>
+      <pubDate>Tue, 18 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Second lede.</description>
+    </item>
+  </channel>
+</rss>

@@ -8,17 +8,17 @@ description: Token-efficient web browsing and web content extraction for AI agen
 Renders a web page as a compact, numbered terminal view instead of raw HTML. A typical page is under 500 tokens.
 
 ```
-npx --yes @only-cli/oc@0.5.4 open <url>     compact view, numbered elements
-npx --yes @only-cli/oc@0.5.4 do <n>         follow link [n], or read it if [n] is text
-npx --yes @only-cli/oc@0.5.4 find <query>   where a string appears, or that place itself
+npx --yes @only-cli/oc@0.5.5 open <url>     compact view, numbered elements
+npx --yes @only-cli/oc@0.5.5 do <n>         follow link [n], or read it if [n] is text
+npx --yes @only-cli/oc@0.5.5 find <query>   where a string appears, or that place itself
                                             when only one matches
-npx --yes @only-cli/oc@0.5.4 next           next ~500 tokens of the page already open
-npx --yes @only-cli/oc@0.5.4 read <n>       full text of region [n]
-npx --yes @only-cli/oc@0.5.4 raw [url]      whole page as markdown (--html for cleaned HTML)
-npx --yes @only-cli/oc@0.5.4 login            seed cookies (--cookie, --domain, --expires)
-npx --yes @only-cli/oc@0.5.4 logout [session] forget a session: cookies and saved page
-npx --yes @only-cli/oc@0.5.4 session ls       list saved sessions (name, url, title)
-npx --yes @only-cli/oc@0.5.4 session rm [name] forget a saved session: page and cookies
+npx --yes @only-cli/oc@0.5.5 next           next ~500 tokens of the page already open
+npx --yes @only-cli/oc@0.5.5 read <n>       full text of region [n]
+npx --yes @only-cli/oc@0.5.5 raw [url]      whole page as markdown (--html for cleaned HTML)
+npx --yes @only-cli/oc@0.5.5 login            seed cookies (--cookie, --domain, --expires)
+npx --yes @only-cli/oc@0.5.5 logout [session] forget a session: cookies and saved page
+npx --yes @only-cli/oc@0.5.5 session ls       list saved sessions (name, url, title)
+npx --yes @only-cli/oc@0.5.5 session rm [name] forget a saved session: page and cookies
 ```
 
 None of these except `open`/`do`/`raw <url>` fetch anything; they replay the page `open` already saved.

@@ -728,6 +728,128 @@ test('the proxy transport counts the body against the same cap', async () => {
   }
 });
 
+// The same words in encodings pages are still served in, as the bytes
+// Python's codecs produce for them, so what a test expects does not come
+// from the decoder under test.
+const LEGACY = {
+  shift_jis: [Buffer.from('93fa967b8cea', 'hex'), '日本語'],
+  euc_kr: [Buffer.from('c7d1b1b9beee', 'hex'), '한국어'],
+  gbk: [Buffer.from('d6d0cec4', 'hex'), '中文'],
+  windows_1252: [Buffer.from('636166e9', 'hex'), 'café'],
+};
+const legacyPage = (head, bytes) => Buffer.concat([Buffer.from(`${head}<p>`), bytes, Buffer.from('</p>')]);
+
+test('a page in a legacy encoding reads as its text on every transport, not as U+FFFD', async () => {
+  const { readBody } = await import('../src/fetch.js');
+
+  const [sjis, japanese] = LEGACY.shift_jis;
+  const fetched = new Response(legacyPage('', sjis), { headers: { 'content-type': 'text/html; charset=Shift_JIS' } });
+  assert.equal(await readBody(fetched, 'https://example.test/'), `<p>${japanese}</p>`);
+
+  // A real impers response keeps the raw bytes in `content`, and its own
+  // `text` reads every charset but a few Western ones as UTF-8.
+  const [euckr, korean] = LEGACY.euc_kr;
+  const content = legacyPage('', euckr);
+  const impers = {
+    get: async (url) => ({
+      status: 200,
+      url,
+      headers: new Map([['content-type', 'text/html; charset=euc-kr']]),
+      content,
+      get text() {
+        return content.toString('utf8');
+      },
+    }),
+  };
+  const page = await withoutProxyEnv(() => viaImpers(impers, 'https://public.example/page'));
+  assert.equal(page.html, `<p>${korean}</p>`);
+
+  // iso-8859-1 is read as windows-1252, as a browser reads it.
+  const [cp1252, french] = LEGACY.windows_1252;
+  const proxy = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=iso-8859-1' });
+    res.end(legacyPage('', cp1252));
+  });
+  const port = await listen(proxy);
+  try {
+    const res = await proxyGet('http://example.test/', `http://127.0.0.1:${port}`);
+    assert.equal(await res.text(), `<p>${french}</p>`);
+  } finally {
+    proxy.close();
+  }
+});
+
+test('with no usable charset in the header the page declares its own, and UTF-8 is what is left', async () => {
+  const { readBody } = await import('../src/fetch.js');
+  const read = (body, type = 'text/html') =>
+    readBody(new Response(body, { headers: { 'content-type': type } }), 'https://example.test/');
+  const [sjis, japanese] = LEGACY.shift_jis;
+  const [euckr, korean] = LEGACY.euc_kr;
+  const [gbk, chinese] = LEGACY.gbk;
+  const [cp1252, french] = LEGACY.windows_1252;
+
+  let head = '<meta charset="Shift_JIS">';
+  assert.equal(await read(legacyPage(head, sjis)), `${head}<p>${japanese}</p>`);
+  head = '<meta http-equiv="Content-Type" content="text/html; charset=gbk">';
+  assert.equal(await read(legacyPage(head, gbk)), `${head}<p>${chinese}</p>`);
+  head = '<?xml version="1.0" encoding="EUC-KR"?>';
+  assert.equal(await read(legacyPage(head, euckr), 'application/rss+xml'), `${head}<p>${korean}</p>`);
+
+  // The header outranks the page, and a label no browser knows (cp949 is
+  // Windows' name for EUC-KR, not a web one) leaves the choice to the page.
+  head = '<meta charset="utf-8">';
+  assert.equal(await read(legacyPage(head, cp1252), 'text/html; charset=windows-1252'), `${head}<p>${french}</p>`);
+  head = '<meta charset="euc-kr">';
+  assert.equal(await read(legacyPage(head, euckr), 'text/html; charset=cp949'), `${head}<p>${korean}</p>`);
+
+  // A label found by reading the bytes as ASCII cannot be UTF-16, whose ASCII
+  // is interleaved with zero bytes, so that claim is read as UTF-8, and so is
+  // a page that declares nothing.
+  const utf8 = `<meta charset="utf-16"><p>${japanese}</p>`;
+  assert.equal(await read(Buffer.from(utf8)), utf8);
+  assert.equal(await read(Buffer.from(`<p>${japanese}</p>`)), `<p>${japanese}</p>`);
+
+  // The decoder drops a UTF-8 byte order mark, which JSON.parse refuses.
+  assert.equal(await read(Buffer.from('\uFEFF{"ok":true}'), 'application/json'), '{"ok":true}');
+});
+
+test('a charset the page never declared is not taken from it', async () => {
+  const { readBody } = await import('../src/fetch.js');
+  const read = (body, type = 'text/html') =>
+    readBody(new Response(body, { headers: { 'content-type': type } }), 'https://example.test/');
+  // Every page here is UTF-8 and read correctly before any of this existed.
+  // Each head writes a legacy label where a browser's prescan takes none, so
+  // a scan that honored one would turn a readable page into mojibake.
+  const page = (head) => `${head}<p>caf\u00E9 \u65E5\u672C\u8A9E</p>`;
+  for (const head of [
+    '<!-- <meta charset="shift_jis"> -->',
+    '<script>var s = "<meta charset=gbk>";</script>',
+    '<a title="<meta charset=gbk>"></a>',
+    '<div data-charset="euc-kr"></div>',
+    '<meta property="og:url" content="https://example.test/?charset=gbk">',
+    '<meta name="description" content="a note about charset=gbk pages">',
+  ]) {
+    assert.equal(await read(Buffer.from(page(head))), page(head), head);
+  }
+
+  // A declaration that follows a comment is still the page's own.
+  const [sjis, japanese] = LEGACY.shift_jis;
+  const head = '<!-- a note --><meta charset="Shift_JIS">';
+  assert.equal(await read(legacyPage(head, sjis)), `${head}<p>${japanese}</p>`);
+
+  // Only markup declares an encoding in its own text: the same <meta> in plain
+  // text or JavaScript is a string, not a declaration.
+  const plain = '<meta charset="gbk"> caf\u00E9';
+  assert.equal(await read(Buffer.from(plain), 'text/plain'), plain);
+  assert.equal(await read(Buffer.from(plain), 'application/javascript'), plain);
+
+  // JSON is UTF-8 by definition, so a charset parameter on it is a label the
+  // server is wrong about, and honoring it feeds JSON.parse mojibake.
+  const json = '{"t":"caf\u00E9"}';
+  assert.equal(await read(Buffer.from(json), 'application/json; charset=iso-8859-1'), json);
+  assert.equal(await read(Buffer.from(json), 'application/ld+json; charset=us-ascii'), json);
+});
+
 // A stand-in for the impers module whose get() either answers with a minimal
 // 200 page or refuses the identity the way impers does when the loaded native
 // library does not know the fingerprint an alias resolves to: it throws an

@@ -7,6 +7,20 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ### Fixed
 
+- A relative link is resolved against the page's `<base href>` when it sets
+  one, not against the URL that served the HTML. Docs generators and mirrors
+  put a base in the head so `intro.html` points at the real tree, and `oc do`
+  was following the mirror instead. `--json` carries the base alongside the
+  page URL when the two differ.
+- A leading `@` in a site path is read as the handle rather than encoded to
+  `%40`. `oc x user @openai` opened a different user, and the `@` in
+  `oc yt channel @Google` doubled the one YouTube's template already carries.
+  A search query still encodes it, because there the mention is what is being
+  looked for.
+- A cookie is replaced only by a Set-Cookie with the same name, domain, and
+  path, the identity RFC 6265 gives it. A refresh from `www.example.com` was
+  swallowing a login seeded for `example.com`, which left later requests to
+  the parent domain and its other subdomains with no credentials.
 - A Sphinx object whose index stores the sentinel `-` now links to the HTML
   id the docs actually use (`{objtype}-{fullname}`). `oc py search json` was
   emitting `#-` for the module heading, which is `#module-json` on

@@ -26,6 +26,23 @@ test('templating fills every arg in order and percent-encodes each value', () =>
     'https://html.duckduckgo.com/html/?q=c%2B%2B%20operator%3F');
 });
 
+test('a leading @ in a path slot is the handle, not percent-encoded', () => {
+  // Agents copy @name from the sites themselves. encodeURIComponent turns that
+  // into %40, which is a different user, and YouTube's template already has
+  // the @ in the URL, so @Google became /@%40Google. A search query still
+  // encodes it: looking for the mention is the query.
+  assert.equal(resolveSite('x', ['user', '@openai']).url, 'https://x.com/openai');
+  assert.equal(resolveSite('yt', ['channel', '@Google']).url, 'https://www.youtube.com/@Google');
+  assert.equal(resolveSite('gh', ['user', '@only-cli']).url, 'https://github.com/only-cli');
+  assert.equal(resolveSite('gh', ['repo', '@only-cli', 'oc']).url, 'https://github.com/only-cli/oc');
+  assert.equal(
+    resolveSite('ddg', ['search', '@openai']).url,
+    'https://html.duckduckgo.com/html/?q=%40openai');
+  assert.equal(
+    resolveSite('wiki', ['article', '@example']).url,
+    'https://en.wikipedia.org/w/index.php?title=%40example&action=render');
+});
+
 test('the last arg takes every remaining word, so a query needs no quoting', () => {
   const quoted = resolveSite('ddg', ['search', 'claude code cli']).url;
   const bare = resolveSite('ddg', ['search', 'claude', 'code', 'cli']).url;

@@ -15,8 +15,13 @@ const INDEX = {
   ],
   terms: { json: 0, thread: [1, 2], socket: [2] },
   titleterms: { json: [0], thread: [1] },
-  objects: { json: [[0, 3, 1, '', 'dumps']] },
-  objnames: { 3: ['py', 'function', 'Python function'] },
+  // Live docs.python.org stores a module as ['json'] under prefix '' with
+  // sentinel anchor '-': the HTML id is {objtype}-{fullname}, #module-json.
+  objects: { '': [[0, 11, 0, '-', 'json']], json: [[0, 3, 1, '', 'dumps']] },
+  objnames: {
+    3: ['py', 'function', 'Python function'],
+    11: ['py', 'module', 'Python module'],
+  },
 };
 const BASE = 'https://docs.python.org/3/';
 
@@ -66,6 +71,18 @@ test('an exact symbol query becomes a direct link to its anchor', () => {
   const html = resultsToHTML(BASE, 'json.dumps', found, INDEX);
   assert.match(html, /href="https:\/\/docs\.python\.org\/3\/library\/json\.html#json\.dumps"/);
   assert.match(html, /Python function/);
+});
+
+test('a Sphinx "-" object anchor is the HTML id the docs use, not a literal hash dash', () => {
+  // Sphinx searchtools.js: empty string -> fullname, '-' -> '{objtype}-{fullname}'.
+  // docs.python.org marks every module this way; json's heading is #module-json.
+  const found = searchIndex(INDEX, 'json');
+  const mod = found.objects.find((o) => o.name === 'json');
+  assert.equal(mod.anchor, 'module-json');
+  const html = resultsToHTML(BASE, 'json', found, INDEX);
+  assert.match(html, /href="https:\/\/docs\.python\.org\/3\/library\/json\.html#module-json"/);
+  assert.match(html, /Python module/);
+  assert.doesNotMatch(html, /#-"|href="[^"]+#-"/);
 });
 
 test('no matches renders an honest empty page, not an error', () => {

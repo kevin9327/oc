@@ -7,6 +7,11 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ### Fixed
 
+- A Sphinx object whose index stores the sentinel `-` now links to the HTML
+  id the docs actually use (`{objtype}-{fullname}`). `oc py search json` was
+  emitting `#-` for the module heading, which is `#module-json` on
+  docs.python.org; the same sentinel covers env vars, opcodes, and pdb
+  commands.
 - An icon link (an image, or an empty anchor with aria-label or title) is
   still a numbered link. Those names already worked on icon buttons; without
   them a logo or icon had no textContent and `oc do` could not follow it.

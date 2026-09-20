@@ -35,6 +35,27 @@ test('noise never reaches the output, compact or raw', () => {
   }
 });
 
+test('input type is matched case-insensitively, as HTML does', () => {
+  // HTML's type attribute is ASCII case-insensitive. type=HIDDEN used to
+  // show up as a numbered input (and leak its value through raw), type=SUBMIT
+  // as an input rather than a button, and type=PASSWORD as a field named
+  // PASSWORD, which is why a login form written that way was not detected.
+  const html = `<html><head><title>Sign in</title></head><body>
+    <input type="HIDDEN" name="csrf" value="secret-token">
+    <input type="PASSWORD" name="p">
+    <input type="SUBMIT" value="Log in">
+  </body></html>`;
+  const page = distill(html, 'https://example.com/login');
+  assert.ok(!page.blocks.some((b) => (b.name ?? '').toLowerCase() === 'csrf' || (b.text ?? '').includes('secret-token')));
+  const password = page.blocks.find((b) => b.type === 'input');
+  assert.equal(password?.text, 'password');
+  const submit = page.blocks.find((b) => b.type === 'button');
+  assert.equal(submit?.text, 'Log in');
+  for (const out of [toMarkdown(html), toHTML(html)]) {
+    assert.ok(!out.includes('secret-token'), 'HIDDEN input leaked through raw');
+  }
+});
+
 test('raw mode emits real markdown with hrefs an agent can follow', () => {
   const md = toMarkdown(html);
   assert.ok(md.startsWith('# Fixture News'));

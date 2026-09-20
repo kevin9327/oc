@@ -38,6 +38,17 @@ test('authFailure detects a login page with password input and supporting signal
   assert.match(authFailure(page, 'https://example.com/login'), /requires login/);
 });
 
+test('authFailure still detects a login form whose type attributes are uppercase', () => {
+  // HTML type is case-insensitive. type=PASSWORD used to store as PASSWORD,
+  // so the password-field check missed it and a login wall rendered as content.
+  const html = `<html><head><title>Sign in</title></head><body>
+    <input type="PASSWORD" name="p">
+    <button>Log in</button>
+  </body></html>`;
+  const page = distill(html, 'https://example.com/login');
+  assert.match(authFailure(page, 'https://example.com/login'), /requires login/);
+});
+
 test('authFailure reports expired session when auth was sent', () => {
   const page = distill(loginHtml, 'https://example.com/login');
   assert.match(

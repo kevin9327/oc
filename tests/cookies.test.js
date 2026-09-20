@@ -172,6 +172,41 @@ test('storeFromResponse replaces cookies with the same name and domain', () => {
   assert.equal(next.cookies[0].value, 'new');
 });
 
+test('a subdomain Set-Cookie does not swallow the login scoped to the parent domain', () => {
+  // `oc login --domain example.com` then `oc open https://www.example.com/`.
+  // The www host often refreshes sid; that is a different cookie from the one
+  // that still has to reach example.com and api.example.com.
+  const jar = jarFromCookieHeader('sid=secret', 'example.com');
+  const next = storeFromResponse(jar, 'https://www.example.com/', ['sid=www; Path=/']);
+  assert.equal(cookieHeaderFor(next, 'https://example.com/'), 'sid=secret');
+  assert.equal(cookieHeaderFor(next, 'https://api.example.com/'), 'sid=secret');
+  const www = cookieHeaderFor(next, 'https://www.example.com/');
+  assert.match(www, /sid=secret/);
+  assert.match(www, /sid=www/);
+});
+
+test('Set-Cookie identity is name, domain, and path, not name alone', () => {
+  const jar = {
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    cookies: [
+      { name: 'sid', value: 'apex', domain: 'example.com', path: '/' },
+      { name: 'sid', value: 'root', domain: 'www.example.com', path: '/' },
+    ],
+  };
+  const next = storeFromResponse(jar, 'https://www.example.com/app', ['sid=app; Path=/app']);
+  assert.equal(next.cookies.length, 3);
+  assert.equal(next.cookies.find((c) => c.domain === 'example.com' && c.path === '/').value, 'apex');
+  assert.equal(next.cookies.find((c) => c.domain === 'www.example.com' && c.path === '/').value, 'root');
+  assert.equal(next.cookies.find((c) => c.path === '/app').value, 'app');
+
+  // Max-Age=0 from www deletes only the www Path=/ cookie.
+  const gone = storeFromResponse(next, 'https://www.example.com/', ['sid=; Max-Age=0; Path=/']);
+  assert.equal(gone.cookies.length, 2);
+  assert.ok(gone.cookies.some((c) => c.domain === 'example.com' && c.value === 'apex'));
+  assert.ok(gone.cookies.some((c) => c.path === '/app' && c.value === 'app'));
+  assert.ok(!gone.cookies.some((c) => c.domain === 'www.example.com' && c.path === '/'));
+});
+
 test('session ceiling caps per-cookie expiry from Set-Cookie', () => {
   const ceiling = new Date(Date.now() + 3_600_000).toISOString();
   const jar = { expiresAt: ceiling, cookies: [] };

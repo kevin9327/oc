@@ -237,7 +237,7 @@ async function main() {
       // view's footer offers when it has cut something.
       let url;
       if (command === 'do') {
-        const target = act.activate(Number(args[0]), { session: sessionName });
+        const target = act.activate(args[0], { session: sessionName });
         // A number that points at text has no page behind it, so `do` reads it
         // rather than making the agent pay for a second command to be told.
         if (target.read != null) {
@@ -369,7 +369,7 @@ async function main() {
       }
       return;
     }
-    case 'read': return console.log(act.read(Number(args[0]), { session: sessionName, budget: asked || 2000 }));
+    case 'read': return console.log(act.read(args[0], { session: sessionName, budget: asked || 2000 }));
     case 'next': return console.log(act.next({ session: sessionName, budget: asked || 500 }));
     case 'find': return console.log(act.find(args.join(' '), { session: sessionName, budget: asked || 500 }));
     case 'fill': return act.fill(Number(args[0]), args.slice(1).join(' '));

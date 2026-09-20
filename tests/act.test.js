@@ -47,6 +47,16 @@ test('do follows the link behind a number without the agent seeing a URL', () =>
   assert.deepEqual(activate(2), { url: 'https://example.test/item?id=1', text: 'Show HN: I built a tiny CSV toolkit' });
 });
 
+test('do and read accept the printed [n] form, not only a bare number', () => {
+  // The compact view writes [2]. Agents copy that into argv. Number('[2]') is
+  // NaN, so the printed form used to fail the usage check.
+  open();
+  assert.deepEqual(activate('[2]'), activate(2));
+  const numbered = read('[9]');
+  assert.equal(numbered, read(9));
+  assert.ok(numbered.includes('safely does'));
+});
+
 test('relative links follow <base href>, not the page URL', () => {
   // Docs generators and mirrors put a <base href> in the head so relative
   // links point at the real tree, not at the URL that served the HTML.

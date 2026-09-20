@@ -144,7 +144,8 @@ export function sessionFromPage(page, previous, { cursor = 0 } = {}) {
       dropped++;
       continue;
     }
-    const href = block.href ? resolveHref(block.href, page.url) : null;
+    // Relative hrefs are against <base href> when the page set one.
+    const href = block.href ? resolveHref(block.href, page.base || page.url) : null;
     blocks.push({
       type: block.type,
       text: block.text,

@@ -12,6 +12,7 @@ import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
 import tls from 'node:tls';
+import zlib from 'node:zlib';
 
 import { getSetCookieHeaders } from './cookies.js';
 
@@ -422,6 +423,26 @@ function authority(target) {
   return `${host}:${port}`;
 }
 
+// Native fetch (undici) already decodes Content-Encoding. Node's http parser
+// does not, so the proxy transport used to charset-decode gzip bytes as the
+// page: binary noise an agent pays for. Only gzip is handled here; deflate
+// and br are left as they arrive, because this path does not ask for them.
+// maxOutputLength is what stops a tiny gzip from expanding past the cap,
+// which the compressed Content-Length cannot see.
+function decompressBody(bytes, encoding, url) {
+  const enc = encoding?.split(',')[0]?.trim().toLowerCase();
+  if (!bytes.length || (enc !== 'gzip' && enc !== 'x-gzip')) return bytes;
+  let out;
+  try {
+    out = zlib.gunzipSync(bytes, { maxOutputLength: MAX_BODY });
+  } catch (err) {
+    if (err.code === 'ERR_BUFFER_TOO_LARGE') assertBodySize(MAX_BODY + 1, url);
+    throw new Error(`failed to decode gzip body for ${url}: ${err.message}`);
+  }
+  assertBodySize(out.length, url);
+  return out;
+}
+
 function wrapNodeResponse(res, url) {
   const headers = {
     get(name) {
@@ -452,7 +473,14 @@ function wrapNodeResponse(res, url) {
       }
       chunks.push(c);
     });
-    res.on('end', () => resolve(decodeBody(Buffer.concat(chunks), headers.get('content-type'))));
+    res.on('end', () => {
+      try {
+        const bytes = decompressBody(Buffer.concat(chunks), headers.get('content-encoding'), url);
+        resolve(decodeBody(bytes, headers.get('content-type')));
+      } catch (err) {
+        reject(err);
+      }
+    });
     res.on('error', reject);
   });
   const status = res.statusCode ?? 0;

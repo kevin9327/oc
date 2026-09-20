@@ -7,6 +7,12 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ### Fixed
 
+- A gzip HTML body through an HTTP proxy is read as the page, not as gzip
+  bytes. Native fetch already decodes Content-Encoding; the proxy transport
+  talks Node's http parser, which does not, so a proxied gzip response was
+  charset-decoded as binary noise. The decompressed size is what counts
+  against the 25MB cap, so a tiny gzip of a huge body is refused the same
+  way an uncompressed one is.
 - An icon link (an image, or an empty anchor with aria-label or title) is
   still a numbered link. Those names already worked on icon buttons; without
   them a logo or icon had no textContent and `oc do` could not follow it.

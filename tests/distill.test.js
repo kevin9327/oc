@@ -73,6 +73,20 @@ test('same page yields the same output', () => {
   assert.equal(render(page()).text, render(page()).text);
 });
 
+test('a page of heading-links offers do, the same as a page of links', () => {
+  // Search engines put the result title in an h2>a. activate already follows
+  // that heading; the footer is the line an agent trusts for what to run next,
+  // and it used to omit do because hasLinks only counted type=link.
+  const html = `<html><head><title>Search</title></head><body>
+    <h2><a href="https://a.example/one">Result One</a></h2>
+    <h2><a href="https://a.example/two">Result Two</a></h2>
+  </body></html>`;
+  const text = render(distill(html, 'https://example.com/search')).text;
+  assert.match(text, /^actions: do <n> \| find <query> \| read <n> \| raw$/m);
+  assert.ok(text.includes('[1] Result One'));
+  assert.ok(text.includes('[2] Result Two'));
+});
+
 test('a page well past the budget is cut, and what was cut is priced', () => {
   const { text, stats } = render(page(), { budget: 25 });
   assert.ok(stats.tokens <= 60, `render cost ~${stats.tokens} tokens against a budget of 25`);

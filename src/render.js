@@ -127,7 +127,9 @@ export function render(page, { budget = 500, from = 0 } = {}) {
     if (spent + cost > limit && lines.length > head.length) break;
     spent += cost;
     lines.push(line);
-    if (block.type === 'link' || block.type === 'button') hasLinks = true;
+    // A heading that is a link (search result titles) is what do follows, so
+    // it has to count here or the footer omits do on a page of only those.
+    if (block.type === 'link' || block.type === 'button' || block.href) hasLinks = true;
   }
 
   const rest = blocks.slice(i);

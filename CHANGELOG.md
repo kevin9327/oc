@@ -3,6 +3,26 @@
 Notable changes per release. Releases before 0.4.0 are listed at
 [github.com/only-cli/oc/releases](https://github.com/only-cli/oc/releases).
 
+## Unreleased
+
+### Fixed
+
+- A response that sends both `Max-Age` and `Expires` is read the way RFC 6265
+  asks, `Max-Age` first, so a logout that sends `Max-Age=0` alongside a future
+  `Expires` clears the cookie instead of keeping it. A `Max-Age` too large for
+  a date to name is ignored rather than throwing `Invalid time value`, which
+  used to take down the whole request over one cookie.
+- The `type` on an input is matched case-insensitively, as HTML defines it.
+  `type=HIDDEN` was numbered as a field and its value printed by `raw`,
+  `type=SUBMIT` came out as an input rather than a button, and a login wall
+  written with `type=PASSWORD` was not detected as one.
+- The footer offers `do <n>` on a page whose links are headings, which is how
+  a search engine writes a result title, and `find` offers it on such a hit
+  too. Both counted only link blocks, so on a page of results the line an
+  agent reads for what to run next was the one line missing `do`.
+- `oc do [2]` and `oc read [2]` take the bracketed form the compact view
+  prints, not only the bare number.
+
 ## 0.5.6
 
 ### Fixed

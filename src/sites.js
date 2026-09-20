@@ -145,7 +145,12 @@ export function resolveSite(name, args) {
  */
 function encode(value, template, arg) {
   const query = template.includes('?') && template.indexOf(`{${arg}}`) > template.indexOf('?');
-  const encoded = encodeURIComponent(value);
+  // A path slot that starts with @ is a copied handle (@name, @channel).
+  // encodeURIComponent would turn it into %40 and miss the user, and YouTube's
+  // template already has the @ in the URL. Search queries keep it, so a
+  // mention in a query is still the thing being searched for.
+  const raw = !query && value.startsWith('@') && value.length > 1 ? value.slice(1) : value;
+  const encoded = encodeURIComponent(raw);
   return query ? encoded : encoded.replaceAll('%2F', '/');
 }
 

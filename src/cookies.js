@@ -412,6 +412,21 @@ export function withheldForScheme(jar, urlStr) {
 }
 
 /**
+ * An ISO timestamp, or undefined when the instant is outside what Date can
+ * name. A huge Max-Age used to throw RangeError from toISOString and abort
+ * the render of a page that was otherwise fine.
+ * @param {number} ms
+ * @returns {string | undefined}
+ */
+function expiryISO(ms) {
+  try {
+    return new Date(ms).toISOString();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Parse one Set-Cookie header value.
  * @param {string} header
  * @param {string} requestUrl
@@ -444,6 +459,16 @@ export function parseSetCookie(header, requestUrl) {
     ...(url.protocol === 'https:' ? { secure: true } : {}),
   };
 
+  // Max-Age and Expires are collected separately: RFC 6265 5.3 says Max-Age
+  // wins even when Expires is written last. Express writes them in that order,
+  // and Expires is the server's clock, so a host whose clock is behind would
+  // otherwise look expired the moment it was set.
+  /** @type {string | undefined} */
+  let maxAgeExpires;
+  let sawMaxAge = false;
+  /** @type {string | undefined} */
+  let expiresAt;
+
   for (const attr of parts.slice(1)) {
     const sep = attr.indexOf('=');
     const key = (sep === -1 ? attr : attr.slice(0, sep)).trim().toLowerCase();
@@ -463,12 +488,18 @@ export function parseSetCookie(header, requestUrl) {
     } else if (key === 'max-age') {
       const age = Number(val);
       if (Number.isFinite(age)) {
-        cookie.expires = new Date(Date.now() + age * 1000).toISOString();
+        sawMaxAge = true;
+        maxAgeExpires = age <= 0 ? new Date(0).toISOString() : expiryISO(Date.now() + age * 1000);
       }
     } else if (key === 'expires') {
       const exp = Date.parse(val);
-      if (!Number.isNaN(exp)) cookie.expires = new Date(exp).toISOString();
+      if (!Number.isNaN(exp)) expiresAt = expiryISO(exp);
     }
+  }
+  if (sawMaxAge) {
+    if (maxAgeExpires) cookie.expires = maxAgeExpires;
+  } else if (expiresAt) {
+    cookie.expires = expiresAt;
   }
   return cookie;
 }

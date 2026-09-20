@@ -117,6 +117,23 @@ test('find reports where a string is, with a number to read it by', () => {
   assert.ok(out.includes('actions: do <n>'), 'a link hit should offer do');
 });
 
+test('find offers do when the hit is a heading that is a link', () => {
+  // The compact view numbers a result title as a heading. do already follows
+  // it; find still treated it as text and omitted do from the actions line.
+  const html = `<html><head><title>Search</title></head><body>
+    <h2><a href="https://a.example/one">Alpha result</a></h2>
+    <h2><a href="https://a.example/two">Beta result</a></h2>
+  </body></html>`;
+  const p = distill(html, 'https://example.com/search');
+  saveSession('headings', sessionFromPage(p, null, { cursor: null }));
+  const one = find('Alpha result', { session: 'headings' });
+  assert.match(one, /1 match for "Alpha result", region \[1\]/);
+  assert.match(one, /actions: do <n> \| find <query>/);
+  const many = find('result', { session: 'headings' });
+  assert.match(many, /2 matches for "result"/);
+  assert.match(many, /actions: do <n> \| find <query>/);
+});
+
 test('find opens the snippet on the match, not on the start of a long block', () => {
   // Several long blocks holding the same term is what puts find on its
   // snippet path: too much to print whole, too many to be the one answer.

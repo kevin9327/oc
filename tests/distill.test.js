@@ -336,6 +336,31 @@ test('an icon link is still a link, named from alt, aria-label, or title', () =>
   ]);
 });
 
+test('a <base href> is the document base, and the first one wins', () => {
+  // Relative links on the page are relative to this, not to the request URL.
+  // Head is dropped as chrome, so the href has to be read here and carried
+  // on the page for sessionFromPage, which is what `oc do` resolves against.
+  const html = readFileSync(new URL('./pages/base_href.html', import.meta.url), 'utf8');
+  const p = distill(html, 'https://mirror.example.test/cached/guide.html');
+  assert.equal(p.base, 'https://docs.example.test/guide/');
+  const intro = p.blocks.find((b) => b.type === 'link' && b.text === 'Introduction');
+  assert.equal(intro.href, 'intro.html', 'the href stays as the page wrote it');
+  const heading = p.blocks.find((b) => b.type === 'heading' && b.text === 'Chapter 2');
+  assert.equal(heading.href, 'chapter2.html');
+
+  const rel = distill(
+    '<html><head><base href="v2/"><title>T</title></head><body><a href="intro.html">Intro</a></body></html>',
+    'https://example.test/docs/index.html',
+  );
+  assert.equal(rel.base, 'https://example.test/docs/v2/');
+
+  const bad = distill(
+    '<html><head><base href="http://["><title>T</title></head><body><a href="intro.html">Intro</a></body></html>',
+    'https://example.test/docs/index.html',
+  );
+  assert.equal(bad.base, undefined, 'an unusable base must not replace the page URL');
+});
+
 test('per item buttons repeat sooner than links before they count as furniture', () => {
   const blocks = social().blocks;
   // Six posts, six sets of Reply/Repost/Like/Bookmark/Share/More.

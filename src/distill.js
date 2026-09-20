@@ -14,6 +14,7 @@ import TurndownService from 'turndown';
  * @property {string} url
  * @property {string} title
  * @property {Block[]} blocks
+ * @property {string} [base] - document base URL from <base href>, if the page set one
  */
 
 // Where the compact view cuts a text block. It lives here because numbering
@@ -143,6 +144,7 @@ function headingHref(node, text) {
 export function distill(html, url = '') {
   const { document } = parseHTML(asHTML(html, url));
   const title = clean(document.querySelector('title')?.textContent ?? '');
+  const base = documentBase(document, url);
   /** @type {Block[]} */
   const blocks = [];
 
@@ -298,7 +300,33 @@ export function distill(html, url = '') {
   } else if (body) {
     walk(body);
   }
-  return { url, title, blocks: number(mergeText(dropRepeats(blocks))) };
+  return {
+    url,
+    title,
+    blocks: number(mergeText(dropRepeats(blocks))),
+    ...(base !== url ? { base } : {}),
+  };
+}
+
+/**
+ * Document base URL from the first <base href>, resolved against the page
+ * URL. Relative links on the page are relative to this, not to the request
+ * URL: a mirror, a CDN, and many docs generators put one in the head.
+ * Head is dropped as chrome, so the href is read here and carried on the
+ * page for sessionFromPage, which is what `oc do` resolves against. An
+ * unusable href leaves the page URL in charge.
+ * @param {any} document
+ * @param {string} url
+ * @returns {string}
+ */
+function documentBase(document, url) {
+  const href = clean(document.querySelector('base[href]')?.getAttribute('href') ?? '');
+  if (!href) return url;
+  try {
+    return new URL(href, url || undefined).href;
+  } catch {
+    return url;
+  }
 }
 
 /**

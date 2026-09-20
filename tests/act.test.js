@@ -47,6 +47,33 @@ test('do follows the link behind a number without the agent seeing a URL', () =>
   assert.deepEqual(activate(2), { url: 'https://example.test/item?id=1', text: 'Show HN: I built a tiny CSV toolkit' });
 });
 
+test('relative links follow <base href>, not the page URL', () => {
+  // Docs generators and mirrors put a <base href> in the head so relative
+  // links point at the real tree, not at the URL that served the HTML.
+  // Resolving only against the request URL sent `do` to the mirror.
+  const html = readFileSync(new URL('./pages/base_href.html', import.meta.url), 'utf8');
+  const p = distill(html, 'https://mirror.example.test/cached/guide.html');
+  saveSession('base', sessionFromPage(p, null, { cursor: null }));
+  const intro = p.blocks.find((b) => b.type === 'link' && b.text === 'Introduction');
+  assert.equal(activate(intro.n, { session: 'base' }).url, 'https://docs.example.test/guide/intro.html');
+  const chapter = p.blocks.find((b) => b.type === 'heading' && b.text === 'Chapter 2');
+  assert.equal(activate(chapter.n, { session: 'base' }).url, 'https://docs.example.test/guide/chapter2.html');
+  const api = p.blocks.find((b) => b.type === 'link' && b.text === 'the API');
+  assert.equal(activate(api.n, { session: 'base' }).url, 'https://docs.example.test/api/index.html');
+  const abs = p.blocks.find((b) => b.type === 'link' && b.text === 'an absolute page');
+  assert.equal(activate(abs.n, { session: 'base' }).url, 'https://example.test/absolute');
+
+  const rel = distill(
+    '<html><head><base href="v2/"><title>T</title></head><body><a href="intro.html">Intro</a></body></html>',
+    'https://example.test/docs/index.html',
+  );
+  saveSession('relbase', sessionFromPage(rel, null, { cursor: null }));
+  assert.equal(
+    activate(rel.blocks.find((b) => b.type === 'link').n, { session: 'relbase' }).url,
+    'https://example.test/docs/v2/intro.html',
+  );
+});
+
 test('do still works on a session saved by an older version', () => {
   saveSession('legacy', { url: 'https://example.test/old', handles: { 1: { type: 'link', text: 'a', href: 'https://example.test/a' } } });
   assert.equal(activate(1, { session: 'legacy' }).url, 'https://example.test/a');

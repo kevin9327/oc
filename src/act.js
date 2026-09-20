@@ -43,16 +43,30 @@ function requireBlocks(session) {
 }
 
 /**
+ * The number a handle was printed as. The compact view writes `[2]`, and
+ * agents copy that form into `oc do [2]` / `oc read [2]`. Number('[2]') is
+ * NaN, so the printed form used to fail the usage check.
+ * @param {unknown} value
+ * @returns {number}
+ */
+export function parseHandle(value) {
+  const s = String(value ?? '').trim();
+  const m = /^\[(\d+)\]$/.exec(s) || /^(\d+)$/.exec(s);
+  return m ? Number(m[1]) : NaN;
+}
+
+/**
  * Resolve a numbered handle from the last render into something to open.
  * Returns the target URL; the caller fetches and renders it exactly as
  * `oc open` would, so `do` and `open` always agree on what a page looks like.
  * When the number is text rather than a link it returns `{read}` instead, and
  * the caller reads it.
- * @param {number} n
+ * @param {unknown} n
  * @param {{session?: string}} [opts]
  * @returns {{url?: string, read?: number, text: string}}
  */
 export function activate(n, { session = DEFAULT_SESSION } = {}) {
+  n = parseHandle(n);
   if (!Number.isInteger(n) || n < 1) {
     throw new Error('usage: oc do <n>, where <n> is a number from the last page');
   }
@@ -100,6 +114,7 @@ const TRAIL = 6;
  * @returns {string}
  */
 export function read(n, { session = DEFAULT_SESSION, budget = 2000 } = {}) {
+  n = parseHandle(n);
   if (!Number.isInteger(n) || n < 1) {
     throw new Error('usage: oc read <n>, where <n> is a number from the last page');
   }

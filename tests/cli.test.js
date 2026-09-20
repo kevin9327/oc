@@ -125,6 +125,21 @@ test('read <n> prints the region at n from the saved page', () => {
   assert.ok(r.stdout.includes(block.text), `read ${block.n} should print the block text:\n${r.stdout}`);
 });
 
+test('do and read accept the printed [n] form from the compact view', () => {
+  const page = seed('brackets');
+  const text = page.blocks.find((b) => b.n != null && b.type === 'text' && !b.href);
+  const heading = page.blocks.find((b) => b.n != null && b.type === 'heading');
+  assert.ok(text, 'the news fixture should have a numbered text block');
+  const doBare = oc(['do', String(text.n), '--session', 'brackets']);
+  const doBracket = oc(['do', `[${text.n}]`, '--session', 'brackets']);
+  assert.equal(doBracket.status, 0, doBracket.stderr);
+  assert.equal(doBracket.stdout, doBare.stdout);
+  const readBare = oc(['read', String(heading.n), '--session', 'brackets']);
+  const readBracket = oc(['read', `[${heading.n}]`, '--session', 'brackets']);
+  assert.equal(readBracket.status, 0, readBracket.stderr);
+  assert.equal(readBracket.stdout, readBare.stdout);
+});
+
 test('read without a valid number fails with usage rather than a stack trace', () => {
   seed('reading');
   for (const args of [['read'], ['read', 'abc'], ['read', '0']]) {

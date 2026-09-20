@@ -139,6 +139,29 @@ test('cookieHeaderFor matches domain and path', () => {
   assert.equal(cookieHeaderFor(jar, 'https://example.com/other'), 'a=1');
 });
 
+test('quoted Path and cookie values are unquoted, as a browser does', () => {
+  // RFC 6265 lets Path and cookie-value wrap in DQUOTE. ASP.NET and several
+  // Java containers quote Path="/admin". Leaving the quotes in the stored
+  // path meant the cookie was never sent to /admin, so the login looked gone.
+  const c = parseSetCookie('sid="abc123"; Path="/admin"', 'https://example.com/app');
+  assert.equal(c.value, 'abc123');
+  assert.equal(c.path, '/admin');
+  const jar = {
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    cookies: [c],
+  };
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/admin'), 'sid=abc123');
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/admin/home'), 'sid=abc123');
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/'), undefined);
+
+  const next = storeFromResponse(
+    { expiresAt: jar.expiresAt, cookies: [] },
+    'https://example.com/app',
+    ['sid="abc123"; Path="/admin"'],
+  );
+  assert.equal(cookieHeaderFor(next, 'https://example.com/admin/x'), 'sid=abc123');
+});
+
 test('parseSetCookie reads attributes and pins the cookie host-only', () => {
   const c = parseSetCookie('sid=val; Path=/app; Domain=.example.com; Secure; HttpOnly; Max-Age=3600',
     'https://www.example.com/login');

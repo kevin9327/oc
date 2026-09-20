@@ -438,7 +438,12 @@ export function parseSetCookie(header, requestUrl) {
   const eq = parts[0].indexOf('=');
   if (eq <= 0) return null;
   const name = parts[0].slice(0, eq).trim();
-  const value = parts[0].slice(eq + 1).trim();
+  // RFC 6265 lets cookie-value be DQUOTE *cookie-octet DQUOTE. ASP.NET and
+  // several Java containers also quote Path. The quotes are wrapping, not
+  // part of the value: leaving them on Path="/admin" meant the cookie was
+  // never sent to /admin.
+  const unquote = (s) => (s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s);
+  const value = unquote(parts[0].slice(eq + 1).trim());
   if (!name) return null;
   // A response is untrusted input, and whatever it sets here is echoed back in
   // the Cookie header of the next request, so it faces the same rule a seeded
@@ -480,7 +485,7 @@ export function parseSetCookie(header, requestUrl) {
     // dependency this project will not take. User-seeded cookies still scope by
     // the --domain they pass, which normalizeDomain holds to the same floor.
     if (key === 'path') {
-      cookie.path = val || '/';
+      cookie.path = unquote(val) || '/';
     } else if (key === 'secure') {
       cookie.secure = true;
     } else if (key === 'httponly') {

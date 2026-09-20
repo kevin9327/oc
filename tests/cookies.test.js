@@ -246,6 +246,42 @@ test('session ceiling caps per-cookie expiry from Set-Cookie', () => {
   assert.equal(next.cookies[0].expires, ceiling);
 });
 
+test('Max-Age wins over Expires, including when Expires is written last', () => {
+  // Express writes Max-Age then Expires. Expires is the server's clock; Max-Age
+  // is relative to the client. A server whose clock is behind sends an Expires
+  // already in the past while Max-Age still has an hour left. RFC 6265 5.3
+  // says Max-Age wins, so the cookie must stay. Reading Expires last deleted
+  // the login the response was trying to refresh.
+  const past = new Date(Date.now() - 86_400_000).toUTCString();
+  const future = new Date(Date.now() + 86_400_000).toUTCString();
+  const jar = {
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    cookies: [{ name: 'sid', value: 'old', domain: 'example.com', path: '/', secure: true }],
+  };
+  const kept = storeFromResponse(jar, 'https://example.com/', [`sid=new; Max-Age=3600; Expires=${past}`]);
+  assert.equal(kept.cookies.length, 1);
+  assert.equal(kept.cookies[0].value, 'new');
+  assert.ok(Date.parse(kept.cookies[0].expires) > Date.now());
+
+  const gone = storeFromResponse(jar, 'https://example.com/', [`sid=new; Expires=${future}; Max-Age=0`]);
+  assert.equal(gone.cookies.length, 0);
+
+  const onlyExp = parseSetCookie(`sid=x; Expires=${future}`, 'https://example.com/');
+  assert.ok(Date.parse(onlyExp.expires) > Date.now());
+});
+
+test('a Max-Age too large for Date does not throw, and the cookie is kept', () => {
+  // Some CDNs send Max-Age=9999999999999. new Date(that * 1000).toISOString()
+  // is a RangeError, and an uncaught throw from parseSetCookie aborted the
+  // render of a page that was otherwise fine.
+  const jar = { expiresAt: new Date(Date.now() + 3_600_000).toISOString(), cookies: [] };
+  assert.doesNotThrow(() => parseSetCookie('sid=x; Max-Age=9999999999999', 'https://example.com/'));
+  const next = storeFromResponse(jar, 'https://example.com/', ['sid=x; Max-Age=9999999999999; Path=/']);
+  assert.equal(next.cookies.length, 1);
+  assert.equal(next.cookies[0].value, 'x');
+  assert.equal(cookieHeaderFor(next, 'https://example.com/'), 'sid=x');
+});
+
 test('saveCookieJar writes an owner-only jar and loadCookieJar reads it back', async (t) => {
   clearCookieJar('work');
   const jar = jarFromCookieHeader('token=secret', 'example.com', { expiresMs: 3_600_000 });

@@ -4,6 +4,7 @@ import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
 import tls from 'node:tls';
+import zlib from 'node:zlib';
 
 const { fetchPage, followRedirects, identityOrder, redditFeedURL, resolveProxy, proxyGet, viaImpers } = await import('../src/fetch.js');
 
@@ -718,6 +719,49 @@ test('the proxy transport counts the body against the same cap', async () => {
     const mb = Buffer.alloc(1024 * 1024, 'x');
     for (let i = 0; i < 26; i++) res.write(mb);
     res.end();
+  });
+  const port = await listen(proxy);
+  try {
+    const res = await proxyGet('http://example.test/bomb', `http://127.0.0.1:${port}`);
+    await assert.rejects(() => res.text(), /more than oc will read/);
+  } finally {
+    proxy.close();
+  }
+});
+
+test('a gzip body through the proxy is the page, not the gzip bytes', async () => {
+  // Native fetch already decodes Content-Encoding. The proxy transport talks
+  // Node's http parser, which does not, so a gzip HTML body used to be
+  // charset-decoded as binary noise. A proxy or origin can send gzip even
+  // when we did not ask; the bytes still have to be the page.
+  const html = '<html><title>gzipped</title><p>café</p></html>';
+  const proxy = http.createServer((req, res) => {
+    res.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'content-encoding': 'gzip',
+    });
+    res.end(zlib.gzipSync(html));
+  });
+  const port = await listen(proxy);
+  try {
+    const res = await proxyGet('http://example.test/page', `http://127.0.0.1:${port}`);
+    assert.equal(await res.text(), html);
+  } finally {
+    proxy.close();
+  }
+});
+
+test('a gzip bomb is refused by the decompressed size, not the compressed one', async () => {
+  const { MAX_BODY } = await import('../src/fetch.js');
+  const huge = Buffer.alloc(MAX_BODY + 1, 120);
+  const compressed = zlib.gzipSync(huge);
+  assert.ok(compressed.length < MAX_BODY, 'the compressed form must fit under the cap');
+  const proxy = http.createServer((req, res) => {
+    res.writeHead(200, {
+      'content-type': 'text/html',
+      'content-encoding': 'gzip',
+    });
+    res.end(compressed);
   });
   const port = await listen(proxy);
   try {

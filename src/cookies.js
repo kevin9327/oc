@@ -326,6 +326,20 @@ function domainMatches(cookie, host) {
 }
 
 /**
+ * RFC 6265 stores one cookie per name, domain, and path. Domain matching is
+ * how a cookie is sent, not how it is replaced: a host-only cookie on
+ * www.example.com is a different cookie from one scoped to example.com, and
+ * Path=/app is a different cookie from Path=/.
+ * @param {Cookie} a
+ * @param {Cookie} b
+ */
+function sameCookie(a, b) {
+  return a.name === b.name
+    && a.domain.toLowerCase().replace(/^\./, '') === b.domain.toLowerCase().replace(/^\./, '')
+    && (a.path || '/') === (b.path || '/');
+}
+
+/**
  * @param {Cookie} cookie
  * @param {string} path
  */
@@ -485,10 +499,10 @@ export function storeFromResponse(jar, url, setCookieHeaders) {
     if (!parsed) continue;
     // Max-Age=0 or Expires in the past deletes the cookie
     if (parsed.expires && Date.parse(parsed.expires) <= Date.now()) {
-      cookies = cookies.filter((c) => !(c.name === parsed.name && domainMatches(c, parsed.domain)));
+      cookies = cookies.filter((c) => !sameCookie(c, parsed));
       continue;
     }
-    cookies = cookies.filter((c) => !(c.name === parsed.name && domainMatches(c, parsed.domain)));
+    cookies = cookies.filter((c) => !sameCookie(c, parsed));
     // Replacing a cookie the jar already holds is always allowed; growing past
     // the cap is not, so a page cannot bloat the sidecar with fresh names. The
     // cookies already there - the seeded login among them - are what survive.

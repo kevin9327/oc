@@ -84,11 +84,17 @@ function objectHits(index, query) {
     for (const [doc, typeIdx, priority, anchor, name] of entries) {
       const full = prefix ? `${prefix}.${name}` : name;
       if (full.toLowerCase() !== q && name.toLowerCase() !== q) continue;
+      // Empty string: the object's own name is the HTML id. The sentinel '-'
+      // means Sphinx built '{objtype}-{fullname}' instead, which is how
+      // docs.python.org names every module heading (#module-json).
+      const id = anchor === '' ? full
+        : anchor === '-' ? `${index.objnames?.[typeIdx]?.[1] ?? ''}-${full}`
+          : anchor;
       hits.push({
         name: full,
         type: index.objnames?.[typeIdx]?.[2] ?? '',
         doc,
-        anchor: anchor === '' ? full : anchor,
+        anchor: id,
         priority,
       });
     }

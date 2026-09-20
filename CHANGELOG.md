@@ -7,6 +7,11 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ### Fixed
 
+- Cookies are sent in RFC 6265 order, the longest path first, so a server that
+  reads one value for a name gets the cookie scoped to the page it is serving
+  rather than whichever arrived first. Two cookies of one name reach the same
+  request now that identity is name, domain, and path, and a refresh keeps the
+  place the old value held instead of moving to the back of the jar.
 - A relative link is resolved against the page's `<base href>` when it sets
   one, not against the URL that served the HTML. Docs generators and mirrors
   put a base in the head so `intro.html` points at the real tree, and `oc do`

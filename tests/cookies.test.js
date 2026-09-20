@@ -132,7 +132,8 @@ test('cookieHeaderFor matches domain and path', () => {
       { name: 'c', value: '3', domain: 'example.com', path: '/app', secure: true },
     ],
   };
-  assert.equal(cookieHeaderFor(jar, 'https://example.com/app/home'), 'a=1; c=3');
+  // Path=/app before Path=/, the order RFC 6265 asks for.
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/app/home'), 'c=3; a=1');
   assert.equal(cookieHeaderFor(jar, 'http://example.com/app/home'), 'a=1');
   assert.equal(cookieHeaderFor(jar, 'https://other.com/'), 'b=2');
   assert.equal(cookieHeaderFor(jar, 'https://example.com/other'), 'a=1');
@@ -205,6 +206,35 @@ test('Set-Cookie identity is name, domain, and path, not name alone', () => {
   assert.ok(gone.cookies.some((c) => c.domain === 'example.com' && c.value === 'apex'));
   assert.ok(gone.cookies.some((c) => c.path === '/app' && c.value === 'app'));
   assert.ok(!gone.cookies.some((c) => c.domain === 'www.example.com' && c.path === '/'));
+});
+
+test('the most specific cookie is sent first, as RFC 6265 orders them', () => {
+  // A server reading one value for a name takes the first it is handed, so
+  // the cookie scoped to the deepest path has to lead. Two cookies of one
+  // name reach the same request now that identity is name, domain, and path.
+  const jar = {
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    cookies: [
+      { name: 'sid', value: 'root', domain: 'example.com', path: '/' },
+      { name: 'sid', value: 'app', domain: 'example.com', path: '/app' },
+      { name: 'sid', value: 'deep', domain: 'example.com', path: '/app/admin' },
+    ],
+  };
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/app/admin/x'), 'sid=deep; sid=app; sid=root');
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/app'), 'sid=app; sid=root');
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/'), 'sid=root');
+});
+
+test('a refresh keeps the place the cookie already had among equal paths', () => {
+  // RFC 6265 carries the original creation time onto a replaced cookie, so a
+  // seeded login stays ahead of a later one that shares its path length. Jar
+  // order stands in for that time, and an update must not jump the queue.
+  const jar = jarFromCookieHeader('sid=secret', 'example.com');
+  const withWww = storeFromResponse(jar, 'https://www.example.com/', ['sid=www; Path=/']);
+  assert.equal(cookieHeaderFor(withWww, 'https://www.example.com/'), 'sid=secret; sid=www');
+  const refreshed = storeFromResponse(withWww, 'https://example.com/', ['sid=secret2; Domain=example.com; Path=/']);
+  assert.equal(cookieHeaderFor(refreshed, 'https://www.example.com/'), 'sid=secret2; sid=www');
+  assert.equal(refreshed.cookies.length, 2);
 });
 
 test('session ceiling caps per-cookie expiry from Set-Cookie', () => {

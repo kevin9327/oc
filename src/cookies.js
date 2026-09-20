@@ -381,6 +381,11 @@ export function cookieHeaderFor(jar, urlStr) {
     return scopeMatches(c, jar, host, path);
   });
   if (!active.length) return undefined;
+  // RFC 6265 5.4 order: the longest path first, and for equal paths the
+  // cookie stored first. A server that reads one value for a name is meant to
+  // get the most specific cookie, which is what a browser sends it. The sort
+  // is stable, so jar order carries the tie the way creation time would.
+  active.sort((a, b) => (b.path || '/').length - (a.path || '/').length);
   return active.map((c) => `${c.name}=${c.value}`).join('; ');
 }
 
@@ -497,22 +502,26 @@ export function storeFromResponse(jar, url, setCookieHeaders) {
   for (const header of setCookieHeaders) {
     const parsed = parseSetCookie(header, url);
     if (!parsed) continue;
+    const at = cookies.findIndex((c) => sameCookie(c, parsed));
     // Max-Age=0 or Expires in the past deletes the cookie
     if (parsed.expires && Date.parse(parsed.expires) <= Date.now()) {
-      cookies = cookies.filter((c) => !sameCookie(c, parsed));
+      if (at >= 0) cookies.splice(at, 1);
       continue;
     }
-    cookies = cookies.filter((c) => !sameCookie(c, parsed));
     // Replacing a cookie the jar already holds is always allowed; growing past
     // the cap is not, so a page cannot bloat the sidecar with fresh names. The
     // cookies already there - the seeded login among them - are what survive.
-    if (cookies.length >= MAX_COOKIES) continue;
+    if (at < 0 && cookies.length >= MAX_COOKIES) continue;
     if (parsed.expires) {
       const ceiling = Date.parse(jar.expiresAt);
       const exp = Date.parse(parsed.expires);
       if (exp > ceiling) parsed.expires = jar.expiresAt;
     }
-    cookies.push(parsed);
+    // A refresh keeps the slot it already had. RFC 6265 carries the original
+    // creation time onto the new value, and jar order is what stands in for
+    // that when cookieHeaderFor breaks a tie between equal-length paths.
+    if (at >= 0) cookies[at] = parsed;
+    else cookies.push(parsed);
   }
   return { ...jar, cookies };
 }

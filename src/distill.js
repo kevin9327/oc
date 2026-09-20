@@ -238,7 +238,11 @@ export function distill(html, url = '') {
       return;
     }
     if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-      const kind = node.getAttribute('type') ?? 'text';
+      // HTML's type attribute is ASCII case-insensitive. type=HIDDEN used to
+      // appear as a numbered input, type=SUBMIT as an input rather than a
+      // button, and type=PASSWORD as a field named PASSWORD, so a login wall
+      // written that way was not detected.
+      const kind = (node.getAttribute('type') ?? 'text').toLowerCase();
       if (kind === 'hidden') return;
       if (kind === 'submit' || kind === 'button') {
         blocks.push({ type: 'button', text: node.getAttribute('value') ?? 'submit' });
@@ -465,7 +469,10 @@ function cleanDocument(html, url = '') {
   for (const tag of DROP) {
     for (const el of [...document.querySelectorAll(tag)]) el.remove();
   }
-  for (const el of [...document.querySelectorAll('[hidden], [aria-hidden="true"], input[type="hidden"]')]) el.remove();
+  for (const el of [...document.querySelectorAll('[hidden], [aria-hidden="true"]')]) el.remove();
+  for (const el of [...document.querySelectorAll('input')]) {
+    if ((el.getAttribute('type') ?? '').toLowerCase() === 'hidden') el.remove();
+  }
   for (const el of [...document.querySelectorAll('[style]')]) {
     if (/display:\s*none/.test(el.getAttribute('style') ?? '')) el.remove();
   }

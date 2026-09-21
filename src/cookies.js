@@ -427,6 +427,23 @@ function expiryISO(ms) {
 }
 
 /**
+ * Strip one pair of wrapping double quotes from a Path. ASP.NET and several
+ * Java containers send Path="/admin"; storing the quotes left pathMatches
+ * matching nothing, so the cookie was silently never sent again and the login
+ * looked gone on the page it was scoped to.
+ *
+ * Only Path gets this. A cookie value is stored and echoed back verbatim, as
+ * RFC 6265 5.2 and every browser have it, as jarFromCookieHeader already
+ * treats a seeded one, and because quoting is how a server protects a value
+ * holding a space or a comma.
+ * @param {string} s
+ * @returns {string}
+ */
+function unquotePath(s) {
+  return s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
+}
+
+/**
  * Parse one Set-Cookie header value.
  * @param {string} header
  * @param {string} requestUrl
@@ -480,7 +497,7 @@ export function parseSetCookie(header, requestUrl) {
     // dependency this project will not take. User-seeded cookies still scope by
     // the --domain they pass, which normalizeDomain holds to the same floor.
     if (key === 'path') {
-      cookie.path = val || '/';
+      cookie.path = unquotePath(val) || '/';
     } else if (key === 'secure') {
       cookie.secure = true;
     } else if (key === 'httponly') {

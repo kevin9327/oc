@@ -22,6 +22,11 @@ Notable changes per release. Releases before 0.4.0 are listed at
   agent reads for what to run next was the one line missing `do`.
 - `oc do [2]` and `oc read [2]` take the bracketed form the compact view
   prints, not only the bare number.
+- A cookie whose `Path` the server wrapped in quotes, the way ASP.NET and
+  several Java containers write `Path="/admin"`, is scoped to the path it
+  names rather than to the quotes around it. The quotes were stored as part
+  of the path, which then matched nothing, so the cookie was silently never
+  sent again and a login looked gone on the page it was scoped to.
 
 ## 0.5.6
 

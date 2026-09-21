@@ -139,19 +139,20 @@ test('cookieHeaderFor matches domain and path', () => {
   assert.equal(cookieHeaderFor(jar, 'https://example.com/other'), 'a=1');
 });
 
-test('quoted Path and cookie values are unquoted, as a browser does', () => {
-  // RFC 6265 lets Path and cookie-value wrap in DQUOTE. ASP.NET and several
-  // Java containers quote Path="/admin". Leaving the quotes in the stored
-  // path meant the cookie was never sent to /admin, so the login looked gone.
+test('a quoted Path is unquoted, a quoted value is kept verbatim', () => {
+  // ASP.NET and several Java containers quote Path="/admin". Leaving the
+  // quotes in the stored path meant the cookie was never sent to /admin, so
+  // the login looked gone. The value keeps its quotes: that is what a browser
+  // echoes back, and what a server that signs the value expects to read.
   const c = parseSetCookie('sid="abc123"; Path="/admin"', 'https://example.com/app');
-  assert.equal(c.value, 'abc123');
   assert.equal(c.path, '/admin');
+  assert.equal(c.value, '"abc123"');
   const jar = {
     expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
     cookies: [c],
   };
-  assert.equal(cookieHeaderFor(jar, 'https://example.com/admin'), 'sid=abc123');
-  assert.equal(cookieHeaderFor(jar, 'https://example.com/admin/home'), 'sid=abc123');
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/admin'), 'sid="abc123"');
+  assert.equal(cookieHeaderFor(jar, 'https://example.com/admin/home'), 'sid="abc123"');
   assert.equal(cookieHeaderFor(jar, 'https://example.com/'), undefined);
 
   const next = storeFromResponse(
@@ -159,7 +160,17 @@ test('quoted Path and cookie values are unquoted, as a browser does', () => {
     'https://example.com/app',
     ['sid="abc123"; Path="/admin"'],
   );
-  assert.equal(cookieHeaderFor(next, 'https://example.com/admin/x'), 'sid=abc123');
+  assert.equal(cookieHeaderFor(next, 'https://example.com/admin/x'), 'sid="abc123"');
+
+  // Quoting is how a server protects a value holding a space or a comma.
+  // Unquoting here would hand the next request a header plenty of servers
+  // split or reject.
+  const spaced = parseSetCookie('sid="a b,c"; Path="/admin"', 'https://example.com/app');
+  assert.equal(spaced.value, '"a b,c"');
+
+  // An unquoted Path is untouched, and Path="" falls back to the default.
+  assert.equal(parseSetCookie('sid=1; Path=/admin', 'https://example.com/app').path, '/admin');
+  assert.equal(parseSetCookie('sid=1; Path=""', 'https://example.com/app').path, '/');
 });
 
 test('parseSetCookie reads attributes and pins the cookie host-only', () => {

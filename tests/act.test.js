@@ -227,6 +227,21 @@ test('search result redirectors resolve to the page they wrap', () => {
 test('links a browser cannot follow are not offered as handles', () => {
   assert.equal(resolveHref('javascript:void(0)', 'https://example.test/'), null);
   assert.equal(resolveHref('', 'https://example.test/'), null);
+  // mailto: is not a page. Prefixing https:// turned hi@example.com into a
+  // GET of example.com with password "hi".
+  assert.equal(resolveHref('mailto:hi@example.com', 'https://example.test/contact'), null);
+  assert.equal(resolveHref('tel:+15551212', 'https://example.test/'), null);
+  // A bare fragment is the page the agent is already reading, so following
+  // it only refetched that page.
+  assert.equal(resolveHref('#install', 'https://example.test/doc'), null);
+  assert.equal(resolveHref('https://example.test/doc#install', 'https://example.test/doc'), null);
+  // A hash on a different path is a real destination: HN comments, another
+  // item's permalink.
+  assert.equal(
+    resolveHref('/item?id=1#comments', 'https://example.test/news'),
+    'https://example.test/item?id=1#comments',
+  );
+  assert.equal(resolveHref('http://[', 'https://example.test/'), null);
 });
 
 test('every failure names the command that fixes it', () => {

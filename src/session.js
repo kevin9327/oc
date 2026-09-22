@@ -104,16 +104,28 @@ function unwrapRedirect(url) {
 
 /**
  * Absolute URL for a handle, or null when the link is not followable
- * (javascript: handlers, malformed hrefs).
+ * (javascript: handlers, mailto:/tel:, same-document fragments, malformed
+ * hrefs). fetchPage prefixes https:// onto anything that is not already
+ * http(s), so mailto:hi@example.com used to become a GET of example.com
+ * with password "hi". A bare fragment is the page already open.
  * @param {string} href
  * @param {string} base
  * @returns {string|null}
  */
 export function resolveHref(href, base) {
-  if (!href || /^(javascript|about):/i.test(href)) return null;
+  if (!href) return null;
   try {
     const url = new URL(href, base || undefined);
-    return unwrapRedirect(url) ?? url.href;
+    if (!/^https?:$/i.test(url.protocol)) return null;
+    const dest = unwrapRedirect(url) ?? url.href;
+    if (base) {
+      const here = new URL(base);
+      const there = new URL(dest);
+      if (here.origin === there.origin && here.pathname === there.pathname && here.search === there.search) {
+        return null;
+      }
+    }
+    return dest;
   } catch {
     return null;
   }

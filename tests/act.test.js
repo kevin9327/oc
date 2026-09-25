@@ -128,6 +128,9 @@ test('a self-anchored signature is the handle find and read agree on', () => {
   const hit = find('dig(index', { session: 'rdoc' });
   const n = Number(hit.match(/region \[(\d+)\]|^\[(\d+)\]/m).slice(1).find(Boolean));
   assert.match(read(n, { session: 'rdoc' }), /intermediate step is nil/);
+  // Nothing on this page leads anywhere, so neither footer offers do.
+  assert.doesNotMatch(hit, /do <n>/);
+  assert.doesNotMatch(render(p).text, /actions: do/);
   // do on a fragment reads it instead of refetching the page.
   const sig = p.blocks.find((b) => b.text === 'dig(index, *identifiers)');
   assert.equal(activate(sig.n, { session: 'rdoc' }).read, sig.n);

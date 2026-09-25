@@ -246,7 +246,7 @@ export function find(query, { session = DEFAULT_SESSION, budget = 500 } = {}) {
   // the example it names was in the block after it.
   if (hits.length === 1 && hits[0].n != null) {
     const only = hits[0];
-    const follow = only.type === 'link' || only.href ? 'do <n> | ' : '';
+    const follow = only.href ? 'do <n> | ' : '';
     return [
       `1 match for "${query}"${separately}, region [${only.n}]`,
       read(only.n, { session, budget: budget * FINISH }),
@@ -274,7 +274,7 @@ export function find(query, { session = DEFAULT_SESSION, budget = 500 } = {}) {
     if (spent + cost > cap && shown) break;
     spent += cost;
     shown++;
-    if (hit.type === 'link' || hit.href) hasLinks = true;
+    if (hit.href) hasLinks = true;
     lines.push(line);
   }
   if (shown < hits.length) {

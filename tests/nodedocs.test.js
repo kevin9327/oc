@@ -13,6 +13,9 @@ const BASE = 'https://nodejs.org/api/';
 const ALL = {
   modules: [{
     textRaw: 'File system', name: 'fs', type: 'module', source: 'doc/api/fs.md',
+    // A section of the page, not the page itself: its name is the slug the
+    // corpus derives from the heading.
+    modules: [{ textRaw: 'Notes', name: 'notes', type: 'module' }],
     methods: [
       {
         textRaw: '`fs.readFile(path[, options], callback)`', name: 'readFile', type: 'method',
@@ -39,6 +42,13 @@ const ALL = {
     textRaw: 'Class: `AbortController` <b>bold</b>', name: 'AbortController', type: 'class',
     source: 'doc/api/globals.md',
   }],
+  // globals.md's own page node, with a global documented as a code span:
+  // the corpus keeps the backticks in its name, as it does for every N-API
+  // function.
+  miscs: [{
+    textRaw: 'Global objects', name: 'Global objects', type: 'misc', source: 'doc/api/globals.md',
+    miscs: [{ textRaw: '`fetch`', name: '`fetch`', type: 'misc' }],
+  }],
 };
 
 test('only the docs corpus parses, so an error page never enters the cache', () => {
@@ -61,6 +71,21 @@ test('a module heading is its page title, so its entry links to the page top', (
   const fs = buildEntries(ALL).find((e) => e.type === 'module');
   assert.equal(fs.page, 'fs.html');
   assert.equal(fs.anchor, '');
+});
+
+test('a section inside a page links to its own heading, not the page top', () => {
+  const notes = buildEntries(ALL).find((e) => e.text === 'Notes');
+  assert.equal(notes.page, 'fs.html');
+  assert.equal(notes.anchor, 'notes');
+});
+
+test('a global the corpus names in backticks, fetch, is a heading with its anchor', () => {
+  const entries = buildEntries(ALL);
+  const fetch = entries.find((e) => e.name === 'fetch');
+  assert.equal(fetch.page, 'globals.html');
+  assert.equal(fetch.anchor, 'fetch');
+  const html = resultsToHTML(BASE, 'fetch', searchEntries(entries, 'fetch'));
+  assert.match(html, /href="https:\/\/nodejs\.org\/api\/globals\.html#fetch">fetch<\/a> section, in globals</);
 });
 
 test('a heading repeated on one page is kept once, not listed as twins', () => {

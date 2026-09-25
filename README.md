@@ -29,6 +29,8 @@ npm install -g @only-cli/oc
 
 Requires Node 20+. Requests impersonate Chrome via [impers](https://github.com/lexiforest/impers). When a site, or the local copy of libcurl-impersonate, refuses the Chrome identity, the request downgrades to Firefox, and to native fetch when impers is unavailable or refuses both.
 
+Red Hat OpenShift also installs an `oc`, and both define `login` and `logout` with unrelated meanings, so whichever lands first on `PATH` shadows the other. If you use OpenShift, call this one with `npx @only-cli/oc` instead of installing it globally, or alias the global install to another name.
+
 ### Agent skill
 
 Install the [web-browsing-cli skill](https://www.skills.sh/only-cli/oc/web-browsing-cli) for Claude Code, Cursor, Codex, Copilot, and other compatible agents:
@@ -139,7 +141,7 @@ Copy the `Cookie` header from your browser's devtools (Application → Cookies, 
 
 Seeded cookies are https-only. They almost always come from an https browser session, so `oc` marks them secure and never sends them over plain `http`, including on a hop an `https` page redirects into, where you never typed the downgrade. A site that really is http-only needs `--allow-http` at login. Cookies a site sets over https are pinned the same way.
 
-Cookies live in a separate sidecar file (`<session>.cookies.json`) under `~/.only-cli/sessions/`, owner-only (mode `0600`, or on Windows the ACL the directory hands down), not in the page-state JSON and never in `--json` output. The default lifetime is one hour (`--expires 1h`), and a jar holds at most 50 cookies so a page cannot bloat it. When cookies expire or the site returns a login page, `oc` says so plainly (exit 2) instead of distilling the login form as content.
+Cookies live in a separate sidecar file (`<session>.cookies.json`) under `~/.only-cli/sessions/`, owner-only (mode `0600` in a `0700` directory, or on Windows the ACL the directory hands down), not in the page-state JSON and never in `--json` output. The default lifetime is one hour (`--expires 1h`), and a jar holds at most 50 cookies so a page cannot bloat it. When cookies expire or the site returns a login page, `oc` says so plainly (exit 2) instead of distilling the login form as content.
 
 `oc logout` forgets the whole session, not just its cookies: a page saved under that name can hold the distilled text of something only the login could reach, so the snapshot goes with the jar. `oc session rm [name]` forgets a session the same way (page plus cookies) without switching to it first, and `oc session ls` lists what is on disk (`[cookies]` marks a live jar). State lives in `~/.only-cli` (`%USERPROFILE%\.only-cli` on Windows, override with `OC_HOME`), one JSON per session plus search-index caches. Delete the directory to start over.
 

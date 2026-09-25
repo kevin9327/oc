@@ -250,14 +250,13 @@ export function distill(html, url = '') {
       return;
     }
     if (tag === 'a' && node.getAttribute('href')) {
-      const href = node.getAttribute('href');
       // Same rule as headingHref: a fragment is this page, mailto: is not a
-      // page. Walk children so the label stays readable text instead of a
-      // numbered handle that do cannot fetch.
-      if (!isFollowableHref(href, base, url)) {
-        for (const child of node.childNodes) walk(child);
-        return;
-      }
+      // page. The link keeps its number without the href, because a fragment
+      // is often the one handle on a place: rdoc's method signature links to
+      // its own id, and as plain text find borrowed the number above it,
+      // which read then opened on the method before.
+      const raw = node.getAttribute('href');
+      const href = isFollowableHref(raw, base, url) ? raw : null;
       // An icon button already takes aria-label or title because it has no
       // text. An anchor around an image is the same shape: img alt is the
       // accessible name and is not a text node, so textContent is empty and
@@ -268,7 +267,7 @@ export function distill(html, url = '') {
         || clean(node.getAttribute('title') ?? '')
         || clean(node.querySelector('img')?.getAttribute('alt') ?? '');
       if (text) {
-        blocks.push({ type: 'link', text, href });
+        blocks.push({ type: 'link', text, ...(href ? { href } : {}) });
       }
       return;
     }

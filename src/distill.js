@@ -119,17 +119,44 @@ const asHTML = (text, url = '', opts = {}) =>
  * Every heading in the Rust book and every one on an AWS CLI reference page
  * carries a permalink to its own id, so following those would refetch the
  * page the agent is already reading, which is worse than the reading it
- * already gets. A bare fragment is never a destination.
+ * already gets. A bare fragment is never a destination, and neither is a
+ * mailto: or tel: href, which is not a page.
  * @param {any} node - the heading element
  * @param {string} text - its cleaned text
+ * @param {string} base - document base, to resolve the href
+ * @param {string} pageUrl - the page itself, for same-document checks
  * @returns {string|null}
  */
-function headingHref(node, text) {
+function headingHref(node, text, base, pageUrl) {
   const anchors = node.querySelectorAll('a[href]');
   if (anchors.length !== 1) return null;
   const href = anchors[0].getAttribute('href') ?? '';
-  if (!href || href.startsWith('#')) return null;
+  if (!href || !isFollowableHref(href, base, pageUrl)) return null;
   return clean(anchors[0].textContent) === text ? href : null;
+}
+
+/**
+ * Whether this href is a page oc can fetch, other than the one already open.
+ * A bare fragment is the current page. mailto:/tel:/javascript: are not
+ * pages: fetchPage prefixes https:// onto a URL with no http(s) scheme, so
+ * mailto:hi@example.com became a GET of example.com with password "hi".
+ * The href resolves against <base href>, but "here" is the page URL: under
+ * <base href="/">, a link to / is the home page, not this one.
+ * @param {string} href
+ * @param {string} base
+ * @param {string} pageUrl
+ * @returns {boolean}
+ */
+function isFollowableHref(href, base, pageUrl) {
+  try {
+    const dest = new URL(href, base || pageUrl || undefined);
+    if (!/^https?:$/i.test(dest.protocol)) return false;
+    if (!pageUrl) return true;
+    const here = new URL(pageUrl);
+    return dest.origin !== here.origin || dest.pathname !== here.pathname || dest.search !== here.search;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -217,12 +244,20 @@ export function distill(html, url = '') {
     if (/^h[1-6]$/.test(tag)) {
       const text = clean(node.textContent);
       if (text) {
-        const href = headingHref(node, text);
+        const href = headingHref(node, text, base, url);
         blocks.push({ type: 'heading', level: Number(tag[1]), text, ...(href ? { href } : {}) });
       }
       return;
     }
     if (tag === 'a' && node.getAttribute('href')) {
+      const href = node.getAttribute('href');
+      // Same rule as headingHref: a fragment is this page, mailto: is not a
+      // page. Walk children so the label stays readable text instead of a
+      // numbered handle that do cannot fetch.
+      if (!isFollowableHref(href, base, url)) {
+        for (const child of node.childNodes) walk(child);
+        return;
+      }
       // An icon button already takes aria-label or title because it has no
       // text. An anchor around an image is the same shape: img alt is the
       // accessible name and is not a text node, so textContent is empty and
@@ -233,7 +268,7 @@ export function distill(html, url = '') {
         || clean(node.getAttribute('title') ?? '')
         || clean(node.querySelector('img')?.getAttribute('alt') ?? '');
       if (text) {
-        blocks.push({ type: 'link', text, href: node.getAttribute('href') });
+        blocks.push({ type: 'link', text, href });
       }
       return;
     }

@@ -7,6 +7,11 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ### Fixed
 
+- `oc do` on a `mailto:` link no longer fetches the email's domain. The URL
+  was not http(s), so fetch prefixed `https://`, and `mailto:hi@example.com`
+  became a GET of example.com with password `hi`. Same-document `#fragment`
+  links, which only refetched the page already open, are no longer numbered
+  as followable. A hash on a different path (`/item?id=1#comments`) still is.
 - A response that sends both `Max-Age` and `Expires` is read the way RFC 6265
   asks, `Max-Age` first, so a logout that sends `Max-Age=0` alongside a future
   `Expires` clears the cookie instead of keeping it. A `Max-Age` too large for

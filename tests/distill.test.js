@@ -553,6 +553,25 @@ test('a heading that merely contains a link is not one', () => {
   assert.equal(selfAnchor.href, undefined, 'a bare fragment is not a destination');
 });
 
+test('mailto and same-document fragments are not numbered as links', () => {
+  // headingHref already refuses a bare fragment. An <a href="#install"> is
+  // the same shape: following it refetches the page. mailto: is not a page;
+  // prefixing https:// turned hi@example.com into a GET of example.com.
+  const html = `<html><head><title>T</title></head><body>
+    <a href="#install">Install</a>
+    <a href="mailto:hi@example.com">Email us</a>
+    <a href="http://[">broken</a>
+    <a href="/item?id=1#comments">87 comments</a>
+    <a href="https://example.test/other">Other</a>
+  </body></html>`;
+  const p = distill(html, 'https://example.test/news');
+  const links = p.blocks.filter((b) => b.type === 'link');
+  assert.deepEqual(links.map((b) => b.text), ['87 comments', 'Other']);
+  assert.equal(links[0].href, '/item?id=1#comments');
+  assert.ok(p.blocks.some((b) => b.text.includes('Install')), 'the fragment label must still be readable');
+  assert.ok(p.blocks.some((b) => b.text.includes('Email us')), 'the mailto label must still be readable');
+});
+
 test('a truncated block ends on a sentence, so what is shown can be trusted', () => {
   const first = 'Welcome to The Rust Programming Language, an introductory book about Rust.';
   const second = ' The Rust programming language helps you write faster, more reliable software.';

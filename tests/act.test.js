@@ -84,6 +84,31 @@ test('relative links follow <base href>, not the page URL', () => {
   );
 });
 
+test('the same-document check is against the page, not <base href>', () => {
+  // Under <base href="/"> a link to / is the home page. Comparing against the
+  // base dropped it as "this page", and kept an absolute link back to the
+  // page itself.
+  const p = distill(
+    `<html><head><base href="/"><title>T</title></head><body>
+      <a href="/">Home</a>
+      <a href="https://example.test/docs/page#install">Install</a>
+      <h2><a href="/">Start</a></h2>
+    </body></html>`,
+    'https://example.test/docs/page',
+  );
+  saveSession('basehome', sessionFromPage(p, null, { cursor: null }));
+  const links = p.blocks.filter((b) => b.type === 'link');
+  assert.deepEqual(links.map((b) => b.text), ['Home']);
+  assert.equal(activate(links[0].n, { session: 'basehome' }).url, 'https://example.test/');
+  assert.equal(p.blocks.find((b) => b.type === 'heading').href, '/');
+
+  assert.equal(resolveHref('./', 'https://example.test/docs/', 'https://example.test/docs/intro.html'), 'https://example.test/docs/');
+  assert.equal(resolveHref('/docs/intro.html#x', 'https://example.test/', 'https://example.test/docs/intro.html'), null);
+  // A bare fragment resolves against the base, as a browser would, so under
+  // a base elsewhere it is a different page.
+  assert.equal(resolveHref('#top', 'https://example.test/', 'https://example.test/docs/intro.html'), 'https://example.test/#top');
+});
+
 test('do still works on a session saved by an older version', () => {
   saveSession('legacy', { url: 'https://example.test/old', handles: { 1: { type: 'link', text: 'a', href: 'https://example.test/a' } } });
   assert.equal(activate(1, { session: 'legacy' }).url, 'https://example.test/a');
@@ -227,6 +252,21 @@ test('search result redirectors resolve to the page they wrap', () => {
 test('links a browser cannot follow are not offered as handles', () => {
   assert.equal(resolveHref('javascript:void(0)', 'https://example.test/'), null);
   assert.equal(resolveHref('', 'https://example.test/'), null);
+  // mailto: is not a page. Prefixing https:// turned hi@example.com into a
+  // GET of example.com with password "hi".
+  assert.equal(resolveHref('mailto:hi@example.com', 'https://example.test/contact'), null);
+  assert.equal(resolveHref('tel:+15551212', 'https://example.test/'), null);
+  // A bare fragment is the page the agent is already reading, so following
+  // it only refetched that page.
+  assert.equal(resolveHref('#install', 'https://example.test/doc'), null);
+  assert.equal(resolveHref('https://example.test/doc#install', 'https://example.test/doc'), null);
+  // A hash on a different path is a real destination: HN comments, another
+  // item's permalink.
+  assert.equal(
+    resolveHref('/item?id=1#comments', 'https://example.test/news'),
+    'https://example.test/item?id=1#comments',
+  );
+  assert.equal(resolveHref('http://[', 'https://example.test/'), null);
 });
 
 test('every failure names the command that fixes it', () => {

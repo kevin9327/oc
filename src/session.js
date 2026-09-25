@@ -104,16 +104,29 @@ function unwrapRedirect(url) {
 
 /**
  * Absolute URL for a handle, or null when the link is not followable
- * (javascript: handlers, malformed hrefs).
+ * (javascript: handlers, mailto:/tel:, same-document fragments, malformed
+ * hrefs). fetchPage prefixes https:// onto anything that is not already
+ * http(s), so mailto:hi@example.com used to become a GET of example.com
+ * with password "hi". A bare fragment is the page already open.
  * @param {string} href
- * @param {string} base
+ * @param {string} base - <base href>, or the page URL when it set none
+ * @param {string} [pageUrl] - the page itself, for same-document checks
  * @returns {string|null}
  */
-export function resolveHref(href, base) {
-  if (!href || /^(javascript|about):/i.test(href)) return null;
+export function resolveHref(href, base, pageUrl = base) {
+  if (!href) return null;
   try {
     const url = new URL(href, base || undefined);
-    return unwrapRedirect(url) ?? url.href;
+    if (!/^https?:$/i.test(url.protocol)) return null;
+    const dest = unwrapRedirect(url) ?? url.href;
+    if (pageUrl) {
+      const here = new URL(pageUrl);
+      const there = new URL(dest);
+      if (here.origin === there.origin && here.pathname === there.pathname && here.search === there.search) {
+        return null;
+      }
+    }
+    return dest;
   } catch {
     return null;
   }
@@ -145,7 +158,7 @@ export function sessionFromPage(page, previous, { cursor = 0 } = {}) {
       continue;
     }
     // Relative hrefs are against <base href> when the page set one.
-    const href = block.href ? resolveHref(block.href, page.base || page.url) : null;
+    const href = block.href ? resolveHref(block.href, page.base || page.url, page.url) : null;
     blocks.push({
       type: block.type,
       text: block.text,

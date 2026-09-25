@@ -81,7 +81,8 @@ export function activate(n, { session = DEFAULT_SESSION } = {}) {
   // and opening it is what `do` was asked for. Reading the title back instead
   // cost a turn, and then another to find the number that does navigate, so a
   // heading that has an href falls through to the link below.
-  if ((handle.type === 'text' || handle.type === 'heading') && !handle.href) {
+  // A link with no href, a fragment or mailto:, has nothing to fetch either.
+  if (['text', 'heading', 'link'].includes(handle.type) && !handle.href) {
     // There is nothing to follow, but the agent asked to see what is at [n],
     // and that is what read prints. Refusing would spend a whole turn to name
     // the command that should have run, and a turn costs more than the page.
@@ -245,7 +246,7 @@ export function find(query, { session = DEFAULT_SESSION, budget = 500 } = {}) {
   // the example it names was in the block after it.
   if (hits.length === 1 && hits[0].n != null) {
     const only = hits[0];
-    const follow = only.type === 'link' || only.href ? 'do <n> | ' : '';
+    const follow = only.href ? 'do <n> | ' : '';
     return [
       `1 match for "${query}"${separately}, region [${only.n}]`,
       read(only.n, { session, budget: budget * FINISH }),
@@ -273,7 +274,7 @@ export function find(query, { session = DEFAULT_SESSION, budget = 500 } = {}) {
     if (spent + cost > cap && shown) break;
     spent += cost;
     shown++;
-    if (hit.type === 'link' || hit.href) hasLinks = true;
+    if (hit.href) hasLinks = true;
     lines.push(line);
   }
   if (shown < hits.length) {

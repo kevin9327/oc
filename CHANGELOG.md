@@ -3,6 +3,16 @@
 Notable changes per release. Releases before 0.4.0 are listed at
 [github.com/only-cli/oc/releases](https://github.com/only-cli/oc/releases).
 
+## Unreleased
+
+### Fixed
+
+- A same-document or `mailto:` link keeps its number again, just without a
+  URL, so `do` reads it instead of fetching anything. 0.5.7 turned these into
+  plain text, and on Ruby's docs, where each method signature links to its
+  own id, `find` then borrowed the number above the signature and `read`
+  opened the previous method.
+
 ## 0.5.7
 
 ### Fixed

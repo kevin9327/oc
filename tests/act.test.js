@@ -97,7 +97,7 @@ test('the same-document check is against the page, not <base href>', () => {
     'https://example.test/docs/page',
   );
   saveSession('basehome', sessionFromPage(p, null, { cursor: null }));
-  const links = p.blocks.filter((b) => b.type === 'link');
+  const links = p.blocks.filter((b) => b.type === 'link' && b.href);
   assert.deepEqual(links.map((b) => b.text), ['Home']);
   assert.equal(activate(links[0].n, { session: 'basehome' }).url, 'https://example.test/');
   assert.equal(p.blocks.find((b) => b.type === 'heading').href, '/');
@@ -107,6 +107,35 @@ test('the same-document check is against the page, not <base href>', () => {
   // A bare fragment resolves against the base, as a browser would, so under
   // a base elsewhere it is a different page.
   assert.equal(resolveHref('#top', 'https://example.test/', 'https://example.test/docs/intro.html'), 'https://example.test/#top');
+});
+
+test('a self-anchored signature is the handle find and read agree on', () => {
+  // rdoc links each method signature to its own id. As plain text it had no
+  // number, so find borrowed the one above it, the previous method's source,
+  // and read opened there: the Array#dig lookup ran out of turns on 0.5.7.
+  const src = Array.from({ length: 40 }, (_, i) => `line ${i} of difference`).join('\n');
+  const p = distill(
+    `<html><head><title>class Array</title></head><body><main>
+      <ul><li><a href="#method-i-difference">difference</a></li><li><a href="#method-i-dig">dig</a></li></ul>
+      <div id="method-i-difference"><a href="#method-i-difference">difference(*other_arrays)</a><pre>${src}</pre></div>
+      <div id="method-i-dig"><a href="#method-i-dig">dig(index, *identifiers)</a>
+        <p>Finds and returns the object in nested objects.</p>
+        <p>Returns nil when an intermediate step is nil.</p></div>
+    </main></body></html>`,
+    'https://example.test/Array.html',
+  );
+  saveSession('rdoc', sessionFromPage(p, null, { cursor: null }));
+  const hit = find('dig(index', { session: 'rdoc' });
+  const n = Number(hit.match(/region \[(\d+)\]|^\[(\d+)\]/m).slice(1).find(Boolean));
+  assert.match(read(n, { session: 'rdoc' }), /intermediate step is nil/);
+  // Nothing on this page leads anywhere, so neither footer offers do.
+  assert.doesNotMatch(hit, /do <n>/);
+  assert.doesNotMatch(render(p).text, /actions: do/);
+  // do on a fragment reads it instead of refetching the page.
+  const sig = p.blocks.find((b) => b.text === 'dig(index, *identifiers)');
+  assert.equal(activate(sig.n, { session: 'rdoc' }).read, sig.n);
+  const menu = p.blocks.find((b) => b.text === 'dig');
+  assert.equal(activate(menu.n, { session: 'rdoc' }).url, undefined);
 });
 
 test('do still works on a session saved by an older version', () => {

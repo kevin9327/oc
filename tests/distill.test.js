@@ -553,10 +553,10 @@ test('a heading that merely contains a link is not one', () => {
   assert.equal(selfAnchor.href, undefined, 'a bare fragment is not a destination');
 });
 
-test('mailto and same-document fragments are not numbered as links', () => {
-  // headingHref already refuses a bare fragment. An <a href="#install"> is
-  // the same shape: following it refetches the page. mailto: is not a page;
-  // prefixing https:// turned hi@example.com into a GET of example.com.
+test('mailto and same-document fragments keep a number but no href', () => {
+  // Following a bare fragment refetches the page, and fetch prefixed https://
+  // onto mailto:hi@example.com, a GET of example.com. The number stays, since
+  // a fragment is often the only handle on a place in the page.
   const html = `<html><head><title>T</title></head><body>
     <a href="#install">Install</a>
     <a href="mailto:hi@example.com">Email us</a>
@@ -566,10 +566,9 @@ test('mailto and same-document fragments are not numbered as links', () => {
   </body></html>`;
   const p = distill(html, 'https://example.test/news');
   const links = p.blocks.filter((b) => b.type === 'link');
-  assert.deepEqual(links.map((b) => b.text), ['87 comments', 'Other']);
-  assert.equal(links[0].href, '/item?id=1#comments');
-  assert.ok(p.blocks.some((b) => b.text.includes('Install')), 'the fragment label must still be readable');
-  assert.ok(p.blocks.some((b) => b.text.includes('Email us')), 'the mailto label must still be readable');
+  assert.deepEqual(links.map((b) => b.text), ['Install', 'Email us', 'broken', '87 comments', 'Other']);
+  assert.deepEqual(links.map((b) => b.href ?? null), [null, null, null, '/item?id=1#comments', 'https://example.test/other']);
+  assert.ok(links.every((b) => b.n != null));
 });
 
 test('a truncated block ends on a sentence, so what is shown can be trusted', () => {

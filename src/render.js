@@ -128,8 +128,9 @@ export function render(page, { budget = 500, from = 0 } = {}) {
     spent += cost;
     lines.push(line);
     // A heading that is a link (search result titles) is what do follows, so
-    // it has to count here or the footer omits do on a page of only those.
-    if (block.type === 'link' || block.type === 'button' || block.href) hasLinks = true;
+    // it has to count here or the footer omits do on a page of only those. A
+    // link with no href is a fragment or mailto:, which do only reads.
+    if (block.type === 'button' || block.href) hasLinks = true;
   }
 
   const rest = blocks.slice(i);

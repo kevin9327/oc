@@ -11,6 +11,10 @@ Notable changes per release. Releases before 0.4.0 are listed at
   its own. `Type: {AbortSignal}` under `abortController.signal` passed as a
   heading because it contains the word `signal`, and 74 such lines in the
   live corpus came back as results linking to ids the pages do not have.
+- `oc node search fetch` finds `fetch` again, and so do `__dirname` and the
+  N-API functions: the corpus keeps backticks in their names, which kept 920
+  headings out of the results. A section inside a page now links to its own
+  heading instead of the page top.
 
 ## 0.5.8
 

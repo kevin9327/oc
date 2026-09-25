@@ -36,11 +36,19 @@ const ALL = {
         textRaw: 'Class: `fs.WriteStream`', name: 'fs.WriteStream', type: 'class',
         events: [{ textRaw: "Event: `'close'`", name: 'close', type: 'event' }],
       },
+      // A property whose type line names the property itself, in the bare
+      // {type} spelling fs.Utf8Stream uses.
+      {
+        textRaw: 'Class: `fs.Utf8Stream`', name: 'fs.Utf8Stream', type: 'class',
+        properties: [{ textRaw: '{string} The file that is being written to.', name: 'file', type: 'string' }],
+      },
     ],
   }],
   classes: [{
     textRaw: 'Class: `AbortController` <b>bold</b>', name: 'AbortController', type: 'class',
     source: 'doc/api/globals.md',
+    // abortController.signal: its type line names the property too.
+    properties: [{ textRaw: 'Type: {AbortSignal}', name: 'signal', type: 'AbortSignal' }],
   }],
   // globals.md's own page node, with a global documented as a code span:
   // the corpus keeps the backticks in its name, as it does for every N-API
@@ -97,6 +105,19 @@ test('parameter lists and Type: lines are not headings, so they are not results'
   const entries = buildEntries(ALL);
   assert.equal(entries.find((e) => e.name === 'path'), undefined);
   assert.equal(entries.find((e) => e.name === 'pending'), undefined);
+});
+
+test('a type line that happens to name its property is still not a heading', () => {
+  // 'Type: {AbortSignal}' contains 'signal' and '{string} The file that is
+  // being written to.' contains 'file', but neither is the heading the page
+  // has (#abortcontrollersignal), so neither may become a result, let alone
+  // one linking to an id that does not exist.
+  const entries = buildEntries(ALL);
+  assert.equal(entries.find((e) => e.name === 'signal'), undefined);
+  assert.equal(entries.find((e) => e.name === 'file'), undefined);
+  const found = searchEntries(entries, 'signal');
+  assert.equal(found.total, 0);
+  assert.doesNotMatch(resultsToHTML(BASE, 'signal', found), /type-abortsignal/);
 });
 
 test('a word that is a symbol name outranks the heading that merely contains it', () => {

@@ -59,8 +59,8 @@ export function parseAll(text) {
  * Flatten the docs tree into the headings a query can hit. Only a top-level
  * entry names its page (source: 'doc/api/fs.md'); everything nested under it
  * inherits that page and contributes its own heading and anchor. A nested
- * entry whose textRaw does not name it is not a heading (a bare 'Type:
- * {number}' line under a property) and is skipped; its parent still stands.
+ * entry whose textRaw is a property's type line, or does not name the entry,
+ * is not a heading and is skipped; its parent still stands.
  * A heading repeated on one page is kept once: the corpus lists some methods
  * twice for one heading, and where a page really repeats one (each stream
  * class has an Event: 'close') the rows would be indistinguishable anyway.
@@ -76,7 +76,12 @@ export function buildEntries(all) {
     // function), so the two are compared with those stripped from both.
     const name = String(node?.name ?? '').replaceAll('`', '');
     const type = String(node?.type ?? '');
-    const heading = text && name
+    // A property's value line, 'Type: {string}', 'Returns: {Object}', or a
+    // bare '{number}', stands where its heading would; it is never one, even
+    // when the property's own name is a word in it (blob.type,
+    // server.listening).
+    const typeLine = /^(?:\w+: )?\{/.test(text);
+    const heading = text && name && !typeLine
       && (top || text.toLowerCase().includes(name.toLowerCase()));
     if (heading && !seen.has(`${page}#${text}`)) {
       seen.add(`${page}#${text}`);

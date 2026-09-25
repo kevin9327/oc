@@ -109,17 +109,18 @@ function unwrapRedirect(url) {
  * http(s), so mailto:hi@example.com used to become a GET of example.com
  * with password "hi". A bare fragment is the page already open.
  * @param {string} href
- * @param {string} base
+ * @param {string} base - <base href>, or the page URL when it set none
+ * @param {string} [pageUrl] - the page itself, for same-document checks
  * @returns {string|null}
  */
-export function resolveHref(href, base) {
+export function resolveHref(href, base, pageUrl = base) {
   if (!href) return null;
   try {
     const url = new URL(href, base || undefined);
     if (!/^https?:$/i.test(url.protocol)) return null;
     const dest = unwrapRedirect(url) ?? url.href;
-    if (base) {
-      const here = new URL(base);
+    if (pageUrl) {
+      const here = new URL(pageUrl);
       const there = new URL(dest);
       if (here.origin === there.origin && here.pathname === there.pathname && here.search === there.search) {
         return null;
@@ -157,7 +158,7 @@ export function sessionFromPage(page, previous, { cursor = 0 } = {}) {
       continue;
     }
     // Relative hrefs are against <base href> when the page set one.
-    const href = block.href ? resolveHref(block.href, page.base || page.url) : null;
+    const href = block.href ? resolveHref(block.href, page.base || page.url, page.url) : null;
     blocks.push({
       type: block.type,
       text: block.text,

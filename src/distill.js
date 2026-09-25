@@ -123,14 +123,15 @@ const asHTML = (text, url = '', opts = {}) =>
  * mailto: or tel: href, which is not a page.
  * @param {any} node - the heading element
  * @param {string} text - its cleaned text
- * @param {string} pageUrl - document base, for same-document checks
+ * @param {string} base - document base, to resolve the href
+ * @param {string} pageUrl - the page itself, for same-document checks
  * @returns {string|null}
  */
-function headingHref(node, text, pageUrl) {
+function headingHref(node, text, base, pageUrl) {
   const anchors = node.querySelectorAll('a[href]');
   if (anchors.length !== 1) return null;
   const href = anchors[0].getAttribute('href') ?? '';
-  if (!href || !isFollowableHref(href, pageUrl)) return null;
+  if (!href || !isFollowableHref(href, base, pageUrl)) return null;
   return clean(anchors[0].textContent) === text ? href : null;
 }
 
@@ -139,13 +140,16 @@ function headingHref(node, text, pageUrl) {
  * A bare fragment is the current page. mailto:/tel:/javascript: are not
  * pages: fetchPage prefixes https:// onto a URL with no http(s) scheme, so
  * mailto:hi@example.com became a GET of example.com with password "hi".
+ * The href resolves against <base href>, but "here" is the page URL: under
+ * <base href="/">, a link to / is the home page, not this one.
  * @param {string} href
+ * @param {string} base
  * @param {string} pageUrl
  * @returns {boolean}
  */
-function isFollowableHref(href, pageUrl) {
+function isFollowableHref(href, base, pageUrl) {
   try {
-    const dest = new URL(href, pageUrl || undefined);
+    const dest = new URL(href, base || pageUrl || undefined);
     if (!/^https?:$/i.test(dest.protocol)) return false;
     if (!pageUrl) return true;
     const here = new URL(pageUrl);
@@ -240,7 +244,7 @@ export function distill(html, url = '') {
     if (/^h[1-6]$/.test(tag)) {
       const text = clean(node.textContent);
       if (text) {
-        const href = headingHref(node, text, base || url);
+        const href = headingHref(node, text, base, url);
         blocks.push({ type: 'heading', level: Number(tag[1]), text, ...(href ? { href } : {}) });
       }
       return;
@@ -250,7 +254,7 @@ export function distill(html, url = '') {
       // Same rule as headingHref: a fragment is this page, mailto: is not a
       // page. Walk children so the label stays readable text instead of a
       // numbered handle that do cannot fetch.
-      if (!isFollowableHref(href, base || url)) {
+      if (!isFollowableHref(href, base, url)) {
         for (const child of node.childNodes) walk(child);
         return;
       }

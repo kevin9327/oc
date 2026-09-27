@@ -73,3 +73,27 @@ test('the reference shortcuts resolve, and a file path keeps its slashes', () =>
   assert.equal(resolveSite('gh', ['pr', 'only-cli', 'oc', '105']).url, 'https://github.com/only-cli/oc/pull/105');
   assert.equal(resolveSite('gh', ['releases', 'facebook', 'react']).url, 'https://github.com/facebook/react/releases');
 });
+
+// The shape of svelte.dev's llms.txt: a title, a summary, and sections of
+// links with a description each.
+const LLMS = '# Svelte Documentation for LLMs\n\n> Svelte is a UI framework.\n\n## Documentation Sets\n\n'
+  + '- [Abridged documentation](https://svelte.dev/llms-medium.txt): A shorter version.\n'
+  + '- [Complete documentation](/llms-full.txt)\n\n## Notes\n\n'
+  + '- The abridged documentation excludes legacy notes\n- [Svelte](https://svelte.dev/docs/svelte/llms.txt): mixed in\n\n'
+  + '- [Script](javascript:alert(1))\n';
+
+test('a Markdown link list is a list of links to follow, as llms.txt needs', () => {
+  const page = distill(LLMS, 'https://svelte.dev/llms.txt');
+  const links = page.blocks.filter((b) => b.href);
+  assert.deepEqual(links.map((b) => [b.text, b.href]), [
+    ['Abridged documentation', 'https://svelte.dev/llms-medium.txt'],
+    ['Complete documentation', 'https://svelte.dev/llms-full.txt'],
+  ]);
+  const lines = texts(page);
+  assert.ok(lines.includes('A shorter version.'), 'the description lost its entry or kept its colon');
+  // A paragraph with any line that is not a link stays verbatim, and so
+  // does a link to anything but a web page.
+  assert.ok(lines.some((l) => l.includes('- [Svelte](https://svelte.dev/docs/svelte/llms.txt): mixed in')));
+  assert.ok(lines.includes('- [Script](javascript:alert(1))'));
+  assert.equal(toMarkdown(LLMS, 'https://svelte.dev/llms.txt'), LLMS.trimEnd(), 'raw rewrote the file');
+});

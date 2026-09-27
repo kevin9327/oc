@@ -43,6 +43,13 @@ test('a leading @ in a path slot is the handle, not percent-encoded', () => {
     'https://en.wikipedia.org/w/index.php?title=%40example&action=render');
 });
 
+test('a scoped name like @scope/name keeps its @, since a handle never has a slash', () => {
+  // The handle rule above stripped the @ from an npm scoped package too, so
+  // @types/node was fetched as types/node, which is a different package.
+  assert.equal(resolveSite('gh', ['user', '@types/node']).url, 'https://github.com/@types/node');
+  assert.equal(resolveSite('gh', ['user', '@openai']).url, 'https://github.com/openai');
+});
+
 test('the last arg takes every remaining word, so a query needs no quoting', () => {
   const quoted = resolveSite('ddg', ['search', 'claude code cli']).url;
   const bare = resolveSite('ddg', ['search', 'claude', 'code', 'cli']).url;

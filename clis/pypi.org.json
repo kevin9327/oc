@@ -1,0 +1,8 @@
+{
+  "domain": "pypi.org",
+  "commands": {
+    "pkg": { "open": "https://pypi.org/pypi/{name}/json", "keep": ["info.name", "info.version", "info.summary", "info.requires_python", "info.license_expression", "info.license", "info.project_urls", "info.requires_dist"], "args": ["name"] },
+    "version": { "open": "https://pypi.org/pypi/{name}/{version}/json", "keep": ["info.name", "info.version", "info.summary", "info.requires_python", "info.license_expression", "info.license", "info.project_urls", "info.requires_dist"], "args": ["name", "version"] },
+    "search": { "open": "https://html.duckduckgo.com/html/?q=site%3Apypi.org%2Fproject+{query}", "args": ["query"] }
+  }
+}

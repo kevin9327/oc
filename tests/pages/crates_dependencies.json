@@ -1,0 +1,76 @@
+{
+ "dependencies": [
+  {
+   "id": 16614503,
+   "version_id": 1666123,
+   "crate_id": "async-stream",
+   "req": "^0.3",
+   "optional": false,
+   "default_features": true,
+   "features": [],
+   "target": null,
+   "kind": "dev",
+   "downloads": 0
+  },
+  {
+   "id": 16614522,
+   "version_id": 1666123,
+   "crate_id": "backtrace",
+   "req": "^0.3.58",
+   "optional": false,
+   "default_features": true,
+   "features": [],
+   "target": "cfg(tokio_taskdump)",
+   "kind": "normal",
+   "downloads": 0
+  },
+  {
+   "id": 16614512,
+   "version_id": 1666123,
+   "crate_id": "libc",
+   "req": "^0.2.168",
+   "optional": false,
+   "default_features": true,
+   "features": [],
+   "target": "cfg(all(tokio_uring, target_os = \"linux\"))",
+   "kind": "normal",
+   "downloads": 0
+  },
+  {
+   "id": 16614526,
+   "version_id": 1666123,
+   "crate_id": "libc",
+   "req": "^0.2.168",
+   "optional": false,
+   "default_features": true,
+   "features": [],
+   "target": "cfg(unix)",
+   "kind": "dev",
+   "downloads": 0
+  },
+  {
+   "id": 16614501,
+   "version_id": 1666123,
+   "crate_id": "pin-project-lite",
+   "req": "^0.2.11",
+   "optional": false,
+   "default_features": true,
+   "features": [],
+   "target": null,
+   "kind": "normal",
+   "downloads": 0
+  },
+  {
+   "id": 16614498,
+   "version_id": 1666123,
+   "crate_id": "bytes",
+   "req": "^1.2.1",
+   "optional": true,
+   "default_features": true,
+   "features": [],
+   "target": null,
+   "kind": "normal",
+   "downloads": 0
+  }
+ ]
+}

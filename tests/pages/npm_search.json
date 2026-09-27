@@ -1,0 +1,78 @@
+{
+ "objects": [
+  {
+   "downloads": {
+    "monthly": 63889108,
+    "weekly": 19199597
+   },
+   "updated": "2026-09-27T10:39:00.785Z",
+   "searchScore": 661.94275,
+   "package": {
+    "name": "@actions/http-client",
+    "version": "4.0.1",
+    "description": "Actions Http Client",
+    "license": "MIT",
+    "date": "2026-04-21T21:42:26.809Z",
+    "links": {
+     "homepage": "https://github.com/actions/toolkit/tree/main/packages/http-client",
+     "repository": "git+https://github.com/actions/toolkit.git",
+     "bugs": "https://github.com/actions/toolkit/issues",
+     "npm": "https://www.npmjs.com/package/@actions/http-client"
+    }
+   },
+   "flags": {
+    "insecure": 0
+   }
+  },
+  {
+   "downloads": {
+    "monthly": 450420375,
+    "weekly": 133925185
+   },
+   "updated": "2026-09-27T10:39:13.291Z",
+   "searchScore": 373.51572,
+   "package": {
+    "name": "axios",
+    "version": "1.20.0",
+    "description": "Promise based HTTP client for the browser and node.js",
+    "license": "MIT",
+    "date": "2026-08-26T08:20:14.517Z",
+    "links": {
+     "homepage": "https://axios-http.com",
+     "repository": "git+https://github.com/axios/axios.git",
+     "bugs": "https://github.com/axios/axios/issues",
+     "npm": "https://www.npmjs.com/package/axios"
+    }
+   },
+   "flags": {
+    "insecure": 0
+   }
+  },
+  {
+   "downloads": {
+    "monthly": 26676431,
+    "weekly": 7929170
+   },
+   "updated": "2026-09-27T10:40:03.193Z",
+   "searchScore": 332.27054,
+   "package": {
+    "name": "ky",
+    "version": "2.1.0",
+    "description": "Tiny and elegant HTTP client based on the Fetch API",
+    "license": "MIT",
+    "date": "2026-08-28T13:10:48.983Z",
+    "links": {
+     "homepage": "https://github.com/sindresorhus/ky#readme",
+     "repository": "git+https://github.com/sindresorhus/ky.git",
+     "bugs": "https://github.com/sindresorhus/ky/issues",
+     "npm": "https://www.npmjs.com/package/ky"
+    }
+   },
+   "flags": {
+    "insecure": 0
+   }
+  }
+ ],
+ "total": 754341,
+ "time": "2026-09-27T15:52:39.766Z"
+}

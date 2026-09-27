@@ -39,6 +39,10 @@ const ALIASES = {
   gcp: 'cloud.google.com',
   learn: 'learn.microsoft.com',
   wiki: 'wikipedia.org',
+  npm: 'npmjs.com',
+  pip: 'pypi.org',
+  cargo: 'crates.io',
+  gem: 'rubygems.org',
 };
 
 /** @typedef {{open?: string, keep?: string[], list?: string, sphinx?: string, nodedoc?: string, rdoc?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */

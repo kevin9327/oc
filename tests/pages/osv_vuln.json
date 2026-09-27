@@ -1,0 +1,91 @@
+{
+ "id": "GHSA-jfh8-c2jp-5v3q",
+ "summary": "Remote code injection in Log4j",
+ "details": "# Summary\n\nLog4j versions prior to 2.16.0 are subject to a remote code execution vulnerability via the ldap JNDI parser.\nAs per [Apache's Log4j security guide](https://logging.apache.org/log4j/2.x/security.html): Apache Log4j2 <=2.14.1 JNDI features used in configuration, log messages, and parameters do not protect against attacker controlled LDAP and other JNDI related endpoints. An attacker who ",
+ "aliases": [
+  "CVE-2021-44228"
+ ],
+ "modified": "2025-10-22T19:37:02.616807Z",
+ "published": "2021-12-10T00:40:56Z",
+ "database_specific": {
+  "nvd_published_at": "2021-12-10T10:15:00Z",
+  "cwe_ids": [
+   "CWE-20",
+   "CWE-400",
+   "CWE-502",
+   "CWE-917"
+  ],
+  "severity": "CRITICAL",
+  "github_reviewed": true,
+  "github_reviewed_at": "2021-12-10T00:40:41Z"
+ },
+ "references": [
+  {
+   "type": "ADVISORY",
+   "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-44228"
+  },
+  {
+   "type": "WEB",
+   "url": "https://github.com/apache/logging-log4j2/pull/608"
+  }
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "org.apache.logging.log4j:log4j-core",
+    "ecosystem": "Maven",
+    "purl": "pkg:maven/org.apache.logging.log4j/log4j-core"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "2.13.0"
+      },
+      {
+       "fixed": "2.15.0"
+      }
+     ]
+    }
+   ],
+   "versions": [
+    "2.13.0",
+    "2.13.1",
+    "2.13.2"
+   ]
+  },
+  {
+   "package": {
+    "name": "org.apache.logging.log4j:log4j-core",
+    "ecosystem": "Maven",
+    "purl": "pkg:maven/org.apache.logging.log4j/log4j-core"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "2.0-beta9"
+      },
+      {
+       "fixed": "2.3.1"
+      }
+     ]
+    }
+   ],
+   "versions": [
+    "2.0",
+    "2.0-beta9",
+    "2.0-rc1"
+   ]
+  }
+ ],
+ "schema_version": "1.9.0",
+ "severity": [
+  {
+   "type": "CVSS_V3",
+   "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/E:H"
+  }
+ ]
+}

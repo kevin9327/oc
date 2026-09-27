@@ -1,0 +1,6 @@
+{
+  "domain": "osv.dev",
+  "commands": {
+    "vuln": { "open": "https://api.osv.dev/v1/vulns/{id}", "args": ["id"], "keep": ["summary", "id", "aliases", "database_specific.severity", "severity.0.score", "affected.0.package.ecosystem", "affected.0.package.name", "affected.0.ranges.0.events.1.fixed", "published", "modified", "details"] }
+  }
+}

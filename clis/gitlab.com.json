@@ -1,0 +1,13 @@
+{
+  "domain": "gitlab.com",
+  "commands": {
+    "repo": { "open": "https://gitlab.com/api/v4/projects/{owner}%2F{name}", "keep": ["name_with_namespace", "description", "star_count", "forks_count", "default_branch", "topics", "last_activity_at", "web_url"], "args": ["owner", "name"] },
+    "user": { "open": "https://gitlab.com/api/v4/users/{name}/projects?per_page=20&order_by=last_activity_at", "list": "", "keep": ["{path_with_namespace} {star_count} stars: {description}", "web_url"], "args": ["name"] },
+    "search": { "open": "https://gitlab.com/api/v4/projects?search={query}&per_page=20&order_by=star_count", "list": "", "keep": ["{path_with_namespace} {star_count} stars: {description}", "web_url"], "args": ["query"] },
+    "issues": { "open": "https://gitlab.com/api/v4/projects/{owner}%2F{name}/issues?state=opened&per_page=20", "list": "", "keep": ["{references.short} {title} ({user_notes_count} comments) {labels}", "web_url"], "args": ["owner", "name"] },
+    "issue": { "open": "https://gitlab.com/api/v4/projects/{owner}%2F{name}/issues/{number}", "keep": ["title", "state", "by {author.username}", "labels", "created_at", "closed_at", "user_notes_count", "web_url", "description"], "args": ["owner", "name", "number"] },
+    "pr": { "open": "https://gitlab.com/api/v4/projects/{owner}%2F{name}/merge_requests/{number}", "keep": ["title", "state", "by {author.username}", "{source_branch} into {target_branch}", "labels", "created_at", "merged_at", "user_notes_count", "web_url", "description"], "args": ["owner", "name", "number"] },
+    "releases": { "open": "https://gitlab.com/api/v4/projects/{owner}%2F{name}/releases?per_page=20", "list": "", "keep": ["{tag_name} {name} {released_at}", "_links.self"], "args": ["owner", "name"] },
+    "file": { "open": "https://gitlab.com/{owner}/{name}/-/raw/HEAD/{path}", "args": ["owner", "name", "path"] }
+  }
+}

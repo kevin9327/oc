@@ -1,0 +1,13 @@
+{
+  "domain": "codeberg.org",
+  "commands": {
+    "repo": { "open": "https://codeberg.org/api/v1/repos/{owner}/{name}", "keep": ["full_name", "description", "stars_count", "forks_count", "open_issues_count", "language", "default_branch", "topics", "updated_at", "html_url"], "args": ["owner", "name"] },
+    "user": { "open": "https://codeberg.org/api/v1/users/{name}/repos?limit=20", "list": "", "keep": ["{full_name} {stars_count} stars: {description}", "html_url"], "args": ["name"] },
+    "search": { "open": "https://codeberg.org/api/v1/repos/search?q={query}&limit=20&sort=stars&order=desc", "list": "data", "keep": ["{full_name} {stars_count} stars: {description}", "html_url"], "args": ["query"] },
+    "issues": { "open": "https://codeberg.org/api/v1/repos/{owner}/{name}/issues?state=open&type=issues&limit=20", "list": "", "keep": ["#{number} {title} ({comments} comments)", "html_url"], "args": ["owner", "name"] },
+    "issue": { "open": "https://codeberg.org/api/v1/repos/{owner}/{name}/issues/{number}", "keep": ["title", "state", "by {user.login}", "created_at", "closed_at", "comments", "html_url", "body"], "args": ["owner", "name", "number"] },
+    "pr": { "open": "https://codeberg.org/api/v1/repos/{owner}/{name}/pulls/{number}", "keep": ["title", "state", "by {user.login}", "{head.label} into {base.label}", "created_at", "merged_at", "comments", "html_url", "body"], "args": ["owner", "name", "number"] },
+    "releases": { "open": "https://codeberg.org/api/v1/repos/{owner}/{name}/releases?limit=20", "list": "", "keep": ["{tag_name} {name} {prerelease} {published_at}", "html_url"], "args": ["owner", "name"] },
+    "file": { "open": "https://codeberg.org/{owner}/{name}/raw/branch/HEAD/{path}", "args": ["owner", "name", "path"] }
+  }
+}

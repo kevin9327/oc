@@ -130,6 +130,38 @@ const pathOf = (url) => {
   }
 };
 
+// One line of a Markdown link list: `- [title](url)`, then an optional
+// description. llms.txt is made of these.
+const LINK_ITEM = /^[ \t]*[-*+][ \t]+\[([^\]\n]+)\]\(([^()\s]+)\)(.*)$/;
+
+/**
+ * A paragraph that is nothing but a Markdown link list, as a list of real
+ * links, so `do <n>` follows an entry of an llms.txt index or a README's
+ * table of links. Anything else in the paragraph keeps it verbatim.
+ * @param {string} p
+ * @param {string} base
+ * @returns {string | null}
+ */
+function linkList(p, base) {
+  const items = [];
+  for (const line of p.split('\n')) {
+    const m = line.match(LINK_ITEM);
+    if (!m) return null;
+    let href;
+    try {
+      href = new URL(m[2], base);
+    } catch {
+      return null;
+    }
+    if (href.protocol !== 'https:' && href.protocol !== 'http:') return null;
+    // The description prints on a line of its own under the link, where the
+    // `: ` that joined it to the title reads as noise.
+    const text = m[3].replace(/^\s*[:-]\s*/, '').trim();
+    items.push(`<li><a href="${escHTML(href.href)}">${escHTML(m[1])}</a>${text ? ` ${escHTML(text)}` : ''}</li>`);
+  }
+  return `<ul>${items.join('')}</ul>`;
+}
+
 /**
  * A plain text body as a page: a source file, a manual page, a README
  * fetched raw. The HTML parser eats everything from a `<` to the next `>`,
@@ -158,7 +190,8 @@ function textToHTML(text, url = '', { full = false, type = '' } = {}) {
   const heading = (p) => /^#{1,6} \S/.test(p) && !p.includes('\n') ? p.match(/^#+/)[0].length : 0;
   const parts = paragraphs.map((p) => {
     const level = heading(p);
-    return level ? `<h${level}>${escHTML(p.slice(level + 1))}</h${level}>` : `<pre>${escHTML(p)}</pre>`;
+    if (level) return `<h${level}>${escHTML(p.slice(level + 1))}</h${level}>`;
+    return (full ? null : linkList(p, url)) ?? `<pre>${escHTML(p)}</pre>`;
   });
   // Only a heading that opens the file names it. A README that starts with
   // prose and has a `# More information` section further down is not titled

@@ -59,6 +59,10 @@ Notable changes per release. Releases before 0.4.0 are listed at
   the topic page itself renders with JavaScript. A `keep` template that
   starts with `/` or `https://` is the item's link, so each topic in a list
   is one `do <n>` away.
+- A Markdown link list in a text file renders as numbered links, so `oc
+  open <site>/llms.txt` gives an index that `do <n>` follows. A paragraph
+  with any other line in it stays verbatim, and `oc raw` prints the file
+  unchanged.
 
 ### Fixed
 

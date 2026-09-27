@@ -1,0 +1,8 @@
+{
+  "domain": "forums.swift.org",
+  "commands": {
+    "latest": { "open": "https://forums.swift.org/latest.json", "list": "topic_list.topics", "keep": ["title", "{posts_count} posts, last {last_posted_at}", "has_accepted_answer", "/raw/{id}"] },
+    "search": { "open": "https://forums.swift.org/search.json?q={query}", "list": "topics", "keep": ["title", "{posts_count} posts, started {created_at}", "has_accepted_answer", "/raw/{id}"], "args": ["query"] },
+    "topic": { "open": "https://forums.swift.org/raw/{id}", "args": ["id"] }
+  }
+}

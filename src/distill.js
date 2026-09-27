@@ -140,16 +140,19 @@ const pathOf = (url) => {
  * page. The raw modes keep the whole file as one block, verbatim.
  * @param {string} text
  * @param {string} url
- * @param {{full?: boolean}} [opts]
+ * @param {{full?: boolean, type?: string}} [opts] - type is the declared Content-Type
  * @returns {string | null}
  */
-function textToHTML(text, url = '', { full = false } = {}) {
+function textToHTML(text, url = '', { full = false, type = '' } = {}) {
   const lead = text.replace(/^\uFEFF/, '').trimStart();
   if (!lead || /^<(!doctype|html)[\s>]/i.test(lead)) return null;
   // A README often opens with a centred logo in a <div>, and read as HTML
   // everything after it was loose text the page reader dropped. A path that
-  // names a text format is text unless it is a whole HTML document.
-  if (!TEXT_PATH.test(pathOf(url)) && (lead.startsWith('<') || HTML_MARK.test(lead.slice(0, 4000)))) return null;
+  // names a text format, or a server that says the body is text, is text
+  // unless it is a whole HTML document: a forum post quoting a <br> is not
+  // a page.
+  const declared = /^text\/(plain|markdown)\b/i.test(type) || TEXT_PATH.test(pathOf(url));
+  if (!declared && (lead.startsWith('<') || HTML_MARK.test(lead.slice(0, 4000)))) return null;
   const body = lead.replace(/\r\n?/g, '\n').trimEnd();
   const paragraphs = full ? [body] : body.split(/\n[ \t]*\n+/);
   const heading = (p) => /^#{1,6} \S/.test(p) && !p.includes('\n') ? p.match(/^#+/)[0].length : 0;
@@ -232,12 +235,13 @@ function isFollowableHref(href, base, pageUrl) {
  * numbers.
  * @param {string} html
  * @param {string} url
- * @param {{view?: View|null}} [opts] - a site shortcut's choice of JSON fields,
+ * @param {{view?: View|null, type?: string}} [opts] - the Content-Type the
+ *   server declared, and a site shortcut's choice of JSON fields,
  *   which only a JSON body reads
  * @returns {Page}
  */
-export function distill(html, url = '', { view = null } = {}) {
-  const { document } = parseHTML(asHTML(html, url, { view }));
+export function distill(html, url = '', { view = null, type = '' } = {}) {
+  const { document } = parseHTML(asHTML(html, url, { view, type }));
   const title = clean(document.querySelector('title')?.textContent ?? '');
   const base = documentBase(document, url);
   /** @type {Block[]} */
@@ -568,11 +572,13 @@ const bodyOf = (document) => document.querySelector('body') ?? document.document
  * distill() skips, so neither raw output ever leaks scripts, styles, or
  * hidden content.
  * @param {string} html
+ * @param {string} [url]
+ * @param {string} [type] - the declared Content-Type
  */
-function cleanDocument(html, url = '') {
+function cleanDocument(html, url = '', type = '') {
   // Raw is the mode an agent reaches for when the compact view left something
   // out, so it is the one place a JSON response keeps every field.
-  const { document } = parseHTML(asHTML(html, url, { full: true }));
+  const { document } = parseHTML(asHTML(html, url, { full: true, type }));
   // Read the title before the sweep below removes the head with it.
   const title = clean(document.querySelector('title')?.textContent ?? '');
   for (const tag of DROP) {
@@ -594,10 +600,11 @@ function cleanDocument(html, url = '') {
  * @param {string} html
  * @param {string} url - only read when the body turns out to be JSON, whose
  *   title has to come from the endpoint because the payload has none
+ * @param {{type?: string}} [opts] - the declared Content-Type
  * @returns {string}
  */
-export function toMarkdown(html, url = '') {
-  const { document, title } = cleanDocument(html, url);
+export function toMarkdown(html, url = '', { type = '' } = {}) {
+  const { document, title } = cleanDocument(html, url, type);
   // A plain text file is already the markdown of itself. Run through the
   // converter it came back with every `#` and backtick escaped.
   const file = document.querySelector('main[data-text] > pre');
@@ -613,10 +620,11 @@ export function toMarkdown(html, url = '') {
  * work with markup than markdown. Same noise removal, no other rewriting.
  * @param {string} html
  * @param {string} url - see toMarkdown
+ * @param {{type?: string}} [opts] - see toMarkdown
  * @returns {string}
  */
-export function toHTML(html, url = '') {
-  const { document } = cleanDocument(html, url);
+export function toHTML(html, url = '', { type = '' } = {}) {
+  const { document } = cleanDocument(html, url, type);
   const el = bodyOf(document);
   return el ? el.innerHTML.trim() : '';
 }
@@ -1244,6 +1252,26 @@ export function fillTemplate(template, item) {
 }
 
 /**
+ * The absolute URL a filled template names, when the template itself starts
+ * as one: a site path ("/raw/{id}") or an https URL. Only the template's own
+ * prefix counts, so a field value can never turn plain text into a link or
+ * point one at another host.
+ * @param {string} template
+ * @param {string} text - the filled template
+ * @param {string} base - the endpoint URL, to resolve a site path
+ * @returns {string}
+ */
+function templateLink(template, text, base) {
+  if (!/^(\/[^/{]|https:\/\/[^/{])/.test(template) || /\s/.test(text)) return '';
+  try {
+    const href = new URL(text, base);
+    return href.protocol === 'https:' || href.protocol === 'http:' ? href.href : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * The view a site shortcut asked for: exactly the fields it named, in the
  * order it named them, for the one object the response is or for each item
  * of the list it points at. This exists because the generic view below has
@@ -1274,7 +1302,11 @@ function chosenToHTML(data, url, view) {
     for (const field of view.keep) {
       if (field.includes('{')) {
         const text = fillTemplate(field, item);
-        if (text) entries.push({ text });
+        // A template that is a URL on the site ("/raw/{id}") is the item's
+        // link: a forum's topic list names no URL of its own to follow.
+        const link = text && templateLink(field, text, url);
+        if (link) entries.push({ text: link, link });
+        else if (text) entries.push({ text });
         continue;
       }
       const value = pick(item, field);

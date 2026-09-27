@@ -49,6 +49,7 @@ const ALIASES = {
   gl: 'gitlab.com',
   material: 'squidfunk.github.io',
   polars: 'docs.pola.rs',
+  urlo: 'users.rust-lang.org',
 };
 
 /** @typedef {{open?: string, keep?: string[], list?: string, sphinx?: string, nodedoc?: string, rdoc?: string, mkdocs?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */

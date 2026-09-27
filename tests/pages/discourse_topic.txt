@@ -1,0 +1,129 @@
+ccqpein | 2021-11-18 05:33:18 UTC | #1
+
+I am trying to play around `async_trait`. And I met the error `error[E0495]: cannot infer an appropriate lifetime for lifetime parameter `'a` due to conflicting requirements` at line 15. 
+
+The notes compiler gives me are 
+
+```
+note: expected `Pin<Box<(dyn Future<Output = ()> + Send + 'async_trait)>>`
+              found `Pin<Box<dyn Future<Output = ()> + Send>>`
+```
+
+Does anyone know how to fix this? 
+
+My code is below and the `AppSync` is totally fine. Do I need to do something to clarify something for async_trait? Thanks.
+
+```rust
+use async_trait::async_trait;
+
+#[async_trait]
+trait App<'a> {
+    type Input;
+    async fn run(input: Self::Input);
+}
+
+struct Something;
+
+#[async_trait]
+impl<'a> App<'a> for Something {
+    type Input = &'a str;
+
+    async fn run(input: Self::Input) {
+        println!("");
+    }
+}
+
+trait AppSync<'a> {
+    type Input;
+    fn run(input: Self::Input);
+}
+
+impl<'a> AppSync<'a> for Something {
+    type Input = &'a str;
+    fn run(input: Self::Input) {
+        println!("");
+    }
+}
+```
+
+-------------------------
+
+ccqpein | 2021-11-18 05:47:37 UTC | #2
+
+I change it to 
+
+```rust
+#[async_trait]
+trait App<'a> {
+    type Input;
+    async fn run(input: Self::Input);
+}
+
+#[async_trait]
+impl App<'_> for Something {
+    type Input = &'static str;
+
+    async fn run(_input: Self::Input) {
+        println!("");
+    }
+}
+```
+
+And compiler doesn't complaint it. Why? What if I really don't want `&'static`?
+
+-------------------------
+
+Yandros | 2021-11-18 11:10:45 UTC | #3
+
+```diff
+use ::async_trait::async_trait;
+
+#[async_trait]
+trait App<'a> {
+    type Input;
+    async fn run (input: Self::Input)
++   where
++       'a : 'async_trait,
+    ;
+}
+
+#[async_trait]
+impl<'a> App<'a> for () {
+    type Input = &'a str;
+
+    async fn run (_input: Self::Input)
++   where
++       'a : 'async_trait,
+    {
+        println!("");
+    }
+}
+```
+
+  - [Playground](https://play.rust-lang.org/?version=nightly&mode=debug&edition=2021&gist=813f556b0d7aeab758b12d0d3be07b4d)
+
+fixes the issue, although it relies on an unstable implementation detail of `#[async_trait]`. I'd report this as an issue to `::async_trait`'s repository, since it's a bug in the signature that that macro generates (it forgets to upper-bound the `'async_trait` intersection lifetime by `'a`).
+
+___
+
+That being said, the correct implementation / logic for the macro would be to generate:
+
+```rust
+where
+    Self::Input : 'async_trait,
+```
+
+  - (the main trick is to generate `where Arg : 'async_trait` for each parameter of the function)
+
+To my surprise —and disappointment!—, Rust considers that bound to be insufficient (when it is not). Feel free to include this extra comment to your issue submitted to their repo, so that they can, on their own, follow up with an issue "upstream" (to `rust`'s repo) about this limitation.
+
+  - Given the limitation, the macro will have to conservatively assume the `'async_trait` lifetime is upper-bounded by all the lifetime parameters of the trait, even though that is technically not always required.
+
+-------------------------
+
+system | 2022-02-16 11:11:27 UTC | #4
+
+This topic was automatically closed 90 days after the last reply. We invite you to open a new topic if you have further questions or comments.
+
+-------------------------
+

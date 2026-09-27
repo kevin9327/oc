@@ -1,0 +1,8 @@
+{
+  "domain": "discourse.nixos.org",
+  "commands": {
+    "latest": { "open": "https://discourse.nixos.org/latest.json", "list": "topic_list.topics", "keep": ["title", "{posts_count} posts, last {last_posted_at}", "has_accepted_answer", "/raw/{id}"] },
+    "search": { "open": "https://discourse.nixos.org/search.json?q={query}", "list": "topics", "keep": ["title", "{posts_count} posts, started {created_at}", "has_accepted_answer", "/raw/{id}"], "args": ["query"] },
+    "topic": { "open": "https://discourse.nixos.org/raw/{id}", "args": ["id"] }
+  }
+}

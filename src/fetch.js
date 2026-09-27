@@ -617,9 +617,10 @@ export function proxyGet(url, proxy, headers = {}, tlsOpts = {}) {
  * Fetch a page.
  * @param {string} url - with or without a scheme, https is assumed
  * @param {{ jar?: { cookieHeaderFor(url: string): string|undefined, storeFromResponse(url: string, headers: string[]): void } }} [opts]
- * @returns {Promise<{url: string, html: string, status: number, via: string}>}
- *   final URL after redirects, the body, the HTTP status, and which client
- *   identity got the page (impers:chrome, impers:firefox, or fetch)
+ * @returns {Promise<{url: string, html: string, status: number, via: string, type: string}>}
+ *   final URL after redirects, the body, the HTTP status, which client
+ *   identity got the page (impers:chrome, impers:firefox, or fetch), and the
+ *   Content-Type the server declared
  */
 export async function fetchPage(url, { jar } = {}) {
   let target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -757,7 +758,7 @@ const bufferedContent = (res) => {
  * @param {any} impers - the impers module (or a stand-in with a get method)
  * @param {string} target
  * @param {object} [jar]
- * @returns {Promise<{url: string, html: string, status: number, via: string}>}
+ * @returns {Promise<{url: string, html: string, status: number, via: string, type: string}>}
  */
 export async function viaImpers(impers, target, jar) {
   // A blocked first attempt gets one cheap retry with the other identity. An
@@ -810,11 +811,11 @@ export async function viaImpers(impers, target, jar) {
     // this is the only size this transport ever really checks. Refused before
     // the decode so an oversized body is not allocated twice over.
     assertBodySize(bytes.length, target);
-    return { url: res.url ?? target, html: decodeBody(bytes, res.headers.get('content-type')), status, via };
+    return { url: res.url ?? target, html: decodeBody(bytes, res.headers.get('content-type')), status, via, type: res.headers.get('content-type') ?? '' };
   }
   const html = typeof res.text === 'function' ? await res.text() : String(res.text ?? res.body ?? '');
   assertBodySize(html.length, target);
-  return { url: res.url ?? target, html, status, via };
+  return { url: res.url ?? target, html, status, via, type: res.headers.get('content-type') ?? '' };
 }
 
 async function viaFetch(target, jar) {
@@ -832,7 +833,8 @@ async function viaFetch(target, jar) {
   }
   assertReadableType(res.headers.get('content-type'));
   assertBodySize(Number(res.headers.get('content-length')) || 0, current);
-  return { url: res.url || current, html: await readBody(res, current), status: res.status, via: 'fetch' };
+  return { url: res.url || current, html: await readBody(res, current), status: res.status, via: 'fetch',
+    type: res.headers.get('content-type') ?? '' };
 }
 
 /**

@@ -93,6 +93,7 @@ Works on any mostly-static site with no per-site setup: news sites, blogs, docum
 | DuckDuckGo | `oc ddg` | `search <query>`, `lite <query>` |
 | Bing | `oc bing` | `search <query>`, `news <query>` |
 | Stack Overflow | `oc so` (via Atom feeds and the Stack Exchange API) | `search <query>`, `question <id>`, `tag <name>`, `user <id>`, `recent` |
+| Discourse forums | `oc urlo`, `oc swift`, `oc nixos` (users.rust-lang.org, forums.swift.org, discourse.nixos.org) | `latest`, `search <query>`, `topic <id>` (the thread as Markdown) |
 | Yahoo Finance | `oc yahoo` | `quote <symbol>`, `news <symbol>`, `history <symbol>`, `lookup <query>`, `markets`, `gainers`, `losers`, `trending` |
 | YouTube | `oc yt` | `video <id>`, `channel <name>` |
 | Wikipedia | `oc wiki` (via `action=render`) | `article <title>`, `search <query>`, `lang <code> <title>` |

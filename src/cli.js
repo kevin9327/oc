@@ -272,7 +272,7 @@ async function main() {
       }
       const jar = jarData ? createJarHandle(sessionName, jarData) : null;
       const t0 = performance.now();
-      const { url: finalUrl, html, status, via } = await fetchPage(url, { jar: jar ?? undefined });
+      const { url: finalUrl, html, status, via, type } = await fetchPage(url, { jar: jar ?? undefined });
       if (jar) saveCookieJar(sessionName, jar.toJSON());
       const fetchMs = performance.now() - t0;
       const resources = () => {
@@ -283,7 +283,7 @@ async function main() {
       };
       const htmlTokens = estimateTokens(html);
       if (values.json) {
-        const page = distill(html, finalUrl, { view });
+        const page = distill(html, finalUrl, { view, type });
         const auth = authFailure(page, finalUrl, { hadAuth });
         const failure = auth ?? contentFailure(contentTokens(page), view ? 0 : htmlTokens);
         // Always present, so a caller can branch on the field rather than on
@@ -300,14 +300,14 @@ async function main() {
         return;
       }
       if (command === 'raw') {
-        const page = distill(html, finalUrl);
+        const page = distill(html, finalUrl, { type });
         const auth = authFailure(page, finalUrl, { hadAuth });
         if (auth) {
           if (jar) clearCookieJar(sessionName);
           noContent(finalUrl, auth);
           return;
         }
-        const out = values.html ? toHTML(html, finalUrl) : toMarkdown(html, finalUrl);
+        const out = values.html ? toHTML(html, finalUrl, { type }) : toMarkdown(html, finalUrl, { type });
         const outTokens = estimateTokens(out);
         console.log(out);
         if (verbose) {
@@ -327,7 +327,7 @@ async function main() {
         }
         return;
       }
-      const page = distill(html, finalUrl, { view });
+      const page = distill(html, finalUrl, { view, type });
       const auth = authFailure(page, finalUrl, { hadAuth });
       const failure = auth ?? contentFailure(contentTokens(page), view ? 0 : htmlTokens);
       if (auth) {

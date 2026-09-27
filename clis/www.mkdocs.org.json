@@ -1,0 +1,6 @@
+{
+  "domain": "www.mkdocs.org",
+  "commands": {
+    "search": { "mkdocs": "https://www.mkdocs.org/", "args": ["query"] }
+  }
+}

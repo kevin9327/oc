@@ -481,7 +481,14 @@ function mainOf(document, body) {
     const found = [...document.querySelectorAll(selector)];
     if (found.length !== 1) continue;
     const el = found[0];
-    if (el !== body && prose(el) >= total * MIN_SHARE) return el;
+    if (el === body || prose(el) < total * MIN_SHARE) continue;
+    // Material for MkDocs puts both sidebars, the page nav and the table of
+    // contents, inside <main>, so a docs page led with fifty nav links. A
+    // main that holds navigation and exactly one article holding most of its
+    // prose leads with the article; the rest still follows. Walking down to
+    // the densest column instead cut pkg.go.dev to its biggest type.
+    const articles = el.querySelector('nav') ? el.querySelectorAll('article') : [];
+    return articles.length === 1 && prose(articles[0]) >= prose(el) * KEEP_SHARE ? articles[0] : el;
   }
   return densest(body, total);
 }

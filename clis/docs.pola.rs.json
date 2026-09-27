@@ -1,0 +1,6 @@
+{
+  "domain": "docs.pola.rs",
+  "commands": {
+    "search": { "mkdocs": "https://docs.pola.rs/", "args": ["query"] }
+  }
+}

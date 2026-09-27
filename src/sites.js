@@ -6,7 +6,7 @@
  * uses, so nothing here can change what a page costs or how it reads, except
  * that a shortcut at a JSON endpoint may name the fields worth showing. The
  * other shapes are searches cli.js runs itself and renders like any other
- * page: `sphinx` and `rdoc`, for docs sites whose search only exists as a
+ * page: `sphinx`, `rdoc`, and `mkdocs`, for docs sites whose search only exists as a
  * static index file, `nodedoc`, for the Node.js API docs, which ship their
  * reference the same way, and `api`, for a site whose search answers as
  * JSON.
@@ -47,9 +47,11 @@ const ALIASES = {
   man: 'man7.org',
   rfc: 'rfc-editor.org',
   gl: 'gitlab.com',
+  material: 'squidfunk.github.io',
+  polars: 'docs.pola.rs',
 };
 
-/** @typedef {{open?: string, keep?: string[], list?: string, sphinx?: string, nodedoc?: string, rdoc?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */
+/** @typedef {{open?: string, keep?: string[], list?: string, sphinx?: string, nodedoc?: string, rdoc?: string, mkdocs?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */
 /** @typedef {{domain: string, commands: Record<string, Shortcut>}} Site */
 
 /** @type {Map<string, Site>|null} */
@@ -106,7 +108,7 @@ const verbs = (site) =>
  * instead, since the agent has the right site and only needs the verb list.
  * @param {string} name
  * @param {string[]} args
- * @returns {{url?: string, view?: {keep: string[], list?: string}, sphinx?: string, nodedoc?: string, rdoc?: string, api?: Shortcut, query?: string, domain: string, command: string}|null}
+ * @returns {{url?: string, view?: {keep: string[], list?: string}, sphinx?: string, nodedoc?: string, rdoc?: string, mkdocs?: string, api?: Shortcut, query?: string, domain: string, command: string}|null}
  */
 export function resolveSite(name, args) {
   const site = sites().get(name.toLowerCase());
@@ -128,7 +130,7 @@ export function resolveSite(name, args) {
   // back whole for cli.js to run against the site's own search. The local
   // backends need only their docs root; the API shape needs its whole
   // definition, since it names the endpoint and the response fields.
-  for (const kind of ['sphinx', 'nodedoc', 'rdoc']) {
+  for (const kind of ['sphinx', 'nodedoc', 'rdoc', 'mkdocs']) {
     if (def[kind]) {
       return { [kind]: def[kind], query: values[values.length - 1] ?? '', domain: site.domain, command: verb };
     }

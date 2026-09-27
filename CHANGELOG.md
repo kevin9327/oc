@@ -45,9 +45,24 @@ Notable changes per release. Releases before 0.4.0 are listed at
 - `api` search definitions take the same `{path}` templates for a result's
   `text` and `url`, so a registry that answers a search with no URL still
   gets a link per result.
+- An `mkdocs` search backend for sites built with MkDocs or Material for
+  MkDocs, which publish their search index as one static file. `oc astral
+  uv lockfile`, `oc astral ruff unused import`, `oc polars search`, `oc
+  mkdocs search`, and `oc material search` rank it locally under the day
+  cache. Titles are short prose headings there, so a section matched only
+  in its text shows a line of it, and stop words and plural endings do not
+  decide the ranking.
 
 ### Fixed
 
+- A docs page built with Material for MkDocs led with the whole site nav,
+  because the theme puts both sidebars inside `<main>`. A main that holds
+  navigation and one article with most of its text now leads with the
+  article. Microsoft Learn and the TypeScript handbook lead with their text
+  for the same reason.
+- The search index cache named its file after the host alone, so two docs
+  sites on one host, like uv and Ruff on docs.astral.sh, would have read
+  each other's index. The file name now includes the folder.
 - A site argument shaped like `@scope/name` keeps its `@`. The rule that
   drops the `@` from a copied handle (`oc x user @openai`) applied to npm
   scoped packages too, so `@types/node` would have asked for `types/node`,

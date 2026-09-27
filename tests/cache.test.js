@@ -38,7 +38,7 @@ async function withCache(body, fn) {
   process.env.HTTP_PROXY = `http://127.0.0.1:${port}`;
   process.env.OC_HOME = home;
   try {
-    await fn({ home, seen, file: join(home, 'sphinx', '1.1.1.1.json') });
+    await fn({ home, seen, file: join(home, 'sphinx', '1.1.1.1_docs.json') });
   } finally {
     proxy.close();
     for (const k of PROXY_ENV_KEYS) {
@@ -50,7 +50,7 @@ async function withCache(body, fn) {
   }
 }
 
-test('a miss fetches, parses, and writes the file under host and extension', () => withCache('{"n":1}', async ({ seen, file }) => {
+test('a miss fetches, parses, and writes the file under host, folder, and extension', () => withCache('{"n":1}', async ({ seen, file }) => {
   const { data, via } = await cachedFile('sphinx', URL_JSON, parseJSON);
   assert.deepEqual(data, { n: 1 });
   assert.equal(via, 'network');
@@ -110,8 +110,16 @@ test('a cache directory that cannot be created costs only the refetch', () => wi
   assert.deepEqual(seen, [URL_JSON, URL_JSON]);
 }));
 
-test('a URL with no extension caches under the bare host, and kinds do not share files', () => withCache('{"n":3}', async ({ home }) => {
+test('a URL with no extension caches under host and folder, and kinds do not share files', () => withCache('{"n":3}', async ({ home }) => {
   await cachedFile('nodedoc', 'http://1.1.1.1/api/all', parseJSON);
-  assert.ok(existsSync(join(home, 'nodedoc', '1.1.1.1')));
+  assert.ok(existsSync(join(home, 'nodedoc', '1.1.1.1_api')));
   assert.ok(!existsSync(join(home, 'sphinx')), 'a nodedoc fetch created the sphinx directory');
+}));
+
+test('two docs roots on one host keep separate files', () => withCache('{"n":4}', async ({ home }) => {
+  // uv and Ruff both live under docs.astral.sh.
+  await cachedFile('mkdocs', 'http://1.1.1.1/uv/search/search_index.json', parseJSON);
+  await cachedFile('mkdocs', 'http://1.1.1.1/ruff/search/search_index.json', parseJSON);
+  assert.ok(existsSync(join(home, 'mkdocs', '1.1.1.1_uv_search.json')));
+  assert.ok(existsSync(join(home, 'mkdocs', '1.1.1.1_ruff_search.json')));
 }));

@@ -93,7 +93,7 @@ test('every shipped definition is reachable and every url template is filled', (
       // A search verb resolves to a site root or endpoint to ask, not a
       // URL: an API endpoint keeps {query} until search time, so it is
       // filled here the way apiSearch fills it before the template check.
-      const url = resolved.url ?? resolved.sphinx ?? resolved.nodedoc ?? resolved.rdoc
+      const url = resolved.url ?? resolved.sphinx ?? resolved.nodedoc ?? resolved.rdoc ?? resolved.mkdocs
         ?? (def.args ?? []).reduce((u, a) => u.replaceAll(`{${a}}`, `test-${a}`), resolved.api?.api ?? '');
       assert.doesNotMatch(url, /[{}]/, `oc ${name} ${verb} left a template var in ${url}`);
       assert.equal(new URL(url).protocol, 'https:', `oc ${name} ${verb} is not https`);

@@ -1,0 +1,6 @@
+{
+  "domain": "squidfunk.github.io",
+  "commands": {
+    "search": { "mkdocs": "https://squidfunk.github.io/mkdocs-material/", "args": ["query"] }
+  }
+}

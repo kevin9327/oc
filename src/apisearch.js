@@ -12,13 +12,17 @@
 
 import { fetchPage } from './fetch.js';
 import { escapeHTML } from './sphinx.js';
+import { fillTemplate, pick } from './distill.js';
 
 const MAX_RESULTS = 20;
 
 // Response fields are named by dot path ('metadata.total.value'), so a
-// definition can reach into whatever shape a site's API answers with.
-const pick = (obj, path) =>
-  String(path).split('.').reduce((o, key) => (o == null ? undefined : o[key]), obj);
+// definition can reach into whatever shape a site's API answers with, or by
+// a template joining several ('{version} {description}'), which is also how
+// a result gets a link when the API returns none: crates.io and npm answer
+// with names, and the page for a name is a URL the definition knows.
+const field = (item, spec) =>
+  String(spec).includes('{') ? fillTemplate(spec, item) : pick(item, spec);
 
 /**
  * The result list becomes a small HTML page, the same move sphinx.js makes
@@ -36,9 +40,9 @@ export function resultsToHTML(def, query, data, apiURL) {
   const fields = def.fields ?? {};
   const list = pick(data, def.results ?? 'results');
   const items = (Array.isArray(list) ? list : []).slice(0, MAX_RESULTS).map((item) => {
-    const href = new URL(String(pick(item, fields.url ?? 'url') ?? ''), apiURL).href;
-    const title = String(pick(item, fields.title ?? 'title') ?? href);
-    const text = fields.text ? String(pick(item, fields.text) ?? '').trim() : '';
+    const href = new URL(String(field(item, fields.url ?? 'url') ?? ''), apiURL).href;
+    const title = String(field(item, fields.title ?? 'title') || href);
+    const text = fields.text ? String(field(item, fields.text) ?? '').trim() : '';
     return `<li><a href="${escapeHTML(href)}">${escapeHTML(title)}</a>`
       + `${text ? ` ${escapeHTML(text)}` : ''}</li>`;
   });

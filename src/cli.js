@@ -8,6 +8,7 @@ import { resolveSite, listSites } from './sites.js';
 import { sphinxSearch } from './sphinx.js';
 import { nodeSearch } from './nodedocs.js';
 import { rdocSearch } from './rdoc.js';
+import { mkdocsSearch } from './mkdocs.js';
 import { apiSearch } from './apisearch.js';
 import * as act from './act.js';
 import { DEFAULT_SESSION, assertSafeName, clearSession, listSessions, loadSession, saveSession, sessionFromPage } from './session.js';
@@ -356,7 +357,7 @@ async function main() {
       // follows a result. Only the list is ever printed; the index, corpus,
       // and response stay out of context.
       const t0 = performance.now();
-      const local = { sphinx: sphinxSearch, nodedoc: nodeSearch, rdoc: rdocSearch };
+      const local = { sphinx: sphinxSearch, nodedoc: nodeSearch, rdoc: rdocSearch, mkdocs: mkdocsSearch };
       const kind = Object.keys(local).find((k) => search[k]);
       const { url, html, via } = kind
         ? await local[kind](search[kind], search.query)

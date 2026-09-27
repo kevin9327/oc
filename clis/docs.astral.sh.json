@@ -1,0 +1,8 @@
+{
+  "domain": "docs.astral.sh",
+  "commands": {
+    "uv": { "mkdocs": "https://docs.astral.sh/uv/", "args": ["query"] },
+    "ruff": { "mkdocs": "https://docs.astral.sh/ruff/", "args": ["query"] },
+    "rule": { "open": "https://docs.astral.sh/ruff/rules/{name}/", "args": ["name"] }
+  }
+}

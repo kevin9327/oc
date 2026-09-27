@@ -85,7 +85,7 @@ Works on any mostly-static site with no per-site setup: news sites, blogs, docum
 | --- | --- | --- |
 | Hacker News | `oc hn` | `top`, `new`, `item <id>`, `user <name>` |
 | Reddit | `oc reddit` (via the Atom feeds on www.reddit.com) | `sub <name>`, `new <name>`, `top <name>`, `post <id>`, `user <name>`, `search <query>` |
-| GitHub | `oc gh` | `repo <owner> <name>`, `user <name>`, `search <query>`, `trending`, `issues <owner> <name>` |
+| GitHub | `oc gh` (`advisories` reads the advisory database API, 60 requests an hour without a token) | `repo <owner> <name>`, `user <name>`, `search <query>`, `trending`, `issues <owner> <name>`, `advisories <ecosystem> <package>` |
 | X | `oc x` | `user <name>`, `post <id>` |
 | LinkedIn | `oc linkedin` | `profile <name>`, `company <name>`, `jobs <query>` (public guest views) |
 | DuckDuckGo | `oc ddg` | `search <query>`, `lite <query>` |
@@ -112,6 +112,9 @@ Works on any mostly-static site with no per-site setup: news sites, blogs, docum
 | crates.io | `oc cargo` (the JSON API; `docs` opens docs.rs) | `crate <name>`, `deps <name> <version>`, `docs <name>`, `search <query>` |
 | RubyGems | `oc gem` (the JSON API) | `gem <name>`, `versions <name>`, `search <query>` |
 | Docker Hub | `oc docker` (the v2 API) | `official <name>`, `repo <owner> <name>`, `tags <owner> <name>`, `search <query>` |
+| endoflife.date | `oc eol` (the JSON API) | `product <name>`, `cycle <name> <cycle>`, `all` |
+| OSV | `oc osv` (the JSON API; GHSA, CVE, and ecosystem ids all work) | `vuln <id>` |
+| caniuse | `oc caniuse` (the feature files behind the site; per-browser versions stay in `oc raw`, search via DuckDuckGo) | `feature <name>`, `search <query>` |
 
 A shortcut only ever resolves to a URL and then takes the same path `oc open` does, so it changes nothing about what a page costs or how it reads. The one exception is a shortcut onto a JSON API that names the fields worth reading (`keep` in its definition): `oc npm pkg react` then prints the version, license, engines, and dependencies in about 70 tokens instead of guessing from the whole record, and `oc raw` still shows every field. The last argument takes every word after it, so `oc ddg search claude code cli` and `oc aws search s3 lifecycle rules` need no quoting, and a path argument keeps its slashes, so `oc learn doc azure/aks/what-is-aks` reaches that page.
 

@@ -1,0 +1,8 @@
+{
+  "domain": "endoflife.date",
+  "commands": {
+    "product": { "open": "https://endoflife.date/api/{name}.json", "args": ["name"], "keep": ["cycle", "latest", "releaseDate", "support", "eol", "lts", "extendedSupport"] },
+    "cycle": { "open": "https://endoflife.date/api/{name}/{cycle}.json", "args": ["name", "cycle"], "keep": ["latest", "releaseDate", "support", "eol", "lts", "extendedSupport"] },
+    "all": { "open": "https://endoflife.date/api/all.json" }
+  }
+}

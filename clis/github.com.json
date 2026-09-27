@@ -5,6 +5,7 @@
     "user": { "open": "https://github.com/{name}", "args": ["name"] },
     "search": { "open": "https://github.com/search?q={query}&type=repositories", "args": ["query"] },
     "trending": { "open": "https://github.com/trending" },
-    "issues": { "open": "https://github.com/{owner}/{name}/issues", "args": ["owner", "name"] }
+    "issues": { "open": "https://github.com/{owner}/{name}/issues", "args": ["owner", "name"] },
+    "advisories": { "open": "https://api.github.com/advisories?ecosystem={ecosystem}&affects={package}&per_page=20", "args": ["ecosystem", "package"], "keep": ["summary", "html_url", "severity", "cve_id", "vulnerabilities.0.vulnerable_version_range", "vulnerabilities.0.first_patched_version", "published_at", "withdrawn_at"] }
   }
 }

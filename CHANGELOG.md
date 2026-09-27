@@ -12,6 +12,12 @@ Notable changes per release. Releases before 0.4.0 are listed at
   version, license, engine range, or dependency list in one command and gets
   the answer in under a hundred tokens, where the HTML pages cost thousands
   or need a browser.
+- Upgrade and safety shortcuts: `oc eol product nodejs` lists every release
+  line with its support and end-of-life dates, `oc osv vuln <id>` reads an
+  advisory from OSV by GHSA, CVE, or ecosystem id, `oc caniuse feature
+  fetch` gives a web feature's support share, and `oc gh advisories npm
+  lodash` lists GitHub's advisories for a package with the affected range,
+  the fix, and a link each.
 - A site definition can name the fields a JSON answer should show (`keep`,
   with `list` for a list of records), as a dot path or a `{path}` template.
   The generic JSON view guesses well on a list of similar records and badly

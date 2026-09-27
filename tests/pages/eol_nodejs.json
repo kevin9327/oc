@@ -1,0 +1,32 @@
+[
+ {
+  "cycle": "26",
+  "releaseDate": "2026-05-05",
+  "lts": "2026-10-28",
+  "eol": "2029-04-30",
+  "latest": "26.10.0",
+  "latestReleaseDate": "2026-09-22",
+  "support": "2027-10-27",
+  "extendedSupport": false
+ },
+ {
+  "cycle": "25",
+  "releaseDate": "2025-10-15",
+  "eol": "2026-06-01",
+  "latest": "25.9.0",
+  "latestReleaseDate": "2026-04-01",
+  "lts": false,
+  "support": "2026-04-01",
+  "extendedSupport": false
+ },
+ {
+  "cycle": "24",
+  "releaseDate": "2025-05-06",
+  "lts": "2025-10-28",
+  "eol": "2028-04-30",
+  "latest": "24.21.0",
+  "latestReleaseDate": "2026-09-08",
+  "support": "2026-10-20",
+  "extendedSupport": false
+ }
+]

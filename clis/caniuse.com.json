@@ -1,0 +1,7 @@
+{
+  "domain": "caniuse.com",
+  "commands": {
+    "feature": { "open": "https://raw.githubusercontent.com/Fyrd/caniuse/main/features-json/{name}.json", "args": ["name"], "keep": ["title", "description", "usage_perc_y", "usage_perc_a", "status", "spec", "categories", "notes", "keywords"] },
+    "search": { "open": "https://html.duckduckgo.com/html/?q=site%3Acaniuse.com+{query}", "args": ["query"] }
+  }
+}

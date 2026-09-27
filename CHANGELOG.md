@@ -5,6 +5,24 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ## Unreleased
 
+### Added
+
+- Package registry shortcuts: `oc npm`, `oc pip`, `oc cargo`, `oc gem`, and
+  `oc docker` read the registries' own JSON APIs, so an agent asks for a
+  version, license, engine range, or dependency list in one command and gets
+  the answer in under a hundred tokens, where the HTML pages cost thousands
+  or need a browser.
+- A site definition can name the fields a JSON answer should show (`keep`,
+  with `list` for a list of records), as a dot path or a `{path}` template.
+  The generic JSON view guesses well on a list of similar records and badly
+  on a single deep one: PyPI's package record came back as two wheel files
+  and their hashes and never mentioned the version. A `true` flag prints its
+  own name, `false` prints nothing, and a response with none of the named
+  fields renders as before, so an error body stays readable.
+- `api` search definitions take the same `{path}` templates for a result's
+  `text` and `url`, so a registry that answers a search with no URL still
+  gets a link per result.
+
 ### Fixed
 
 - A site argument shaped like `@scope/name` keeps its `@`. The rule that

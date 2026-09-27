@@ -18,6 +18,18 @@ Notable changes per release. Releases before 0.4.0 are listed at
   fetch` gives a web feature's support share, and `oc gh advisories npm
   lodash` lists GitHub's advisories for a package with the affected range,
   the fix, and a link each.
+- Shell references: `oc tldr page tar` reads a tldr page from its source,
+  `oc man page 2 open` a man7.org manual page, and `oc rfc rfc 9110` an
+  RFC. GitHub gains `issue`, `pr`, `releases`, and `file`, the last of
+  which reads a file raw: `oc gh file only-cli oc package.json`.
+- A plain text body renders as a page of its own paragraphs, with line
+  breaks kept and Markdown headings as headings. It went through the HTML
+  parser before, which eats everything from a `<` to the next `>`, so a
+  JavaScript file lost its generics and comparisons and came out as one
+  shuffled block. `oc raw` on a text file now returns the file itself.
+  A path ending in .md, .txt, .rst, or .adoc is text even when it opens
+  with a tag, as many READMEs do with a centred logo, and only a heading
+  that opens the file becomes its title.
 - A site definition can name the fields a JSON answer should show (`keep`,
   with `list` for a list of records), as a dot path or a `{path}` template.
   The generic JSON view guesses well on a list of similar records and badly

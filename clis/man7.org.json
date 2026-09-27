@@ -1,0 +1,7 @@
+{
+  "domain": "man7.org",
+  "commands": {
+    "page": { "open": "https://man7.org/linux/man-pages/man{section}/{name}.{section}.html", "args": ["section", "name"] },
+    "search": { "open": "https://html.duckduckgo.com/html/?q=site%3Aman7.org%2Flinux%2Fman-pages+{query}", "args": ["query"] }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "domain": "rfc-editor.org",
+  "commands": {
+    "rfc": { "open": "https://www.rfc-editor.org/rfc/rfc{number}.html", "args": ["number"] },
+    "search": { "open": "https://html.duckduckgo.com/html/?q=site%3Arfc-editor.org%2Frfc+{query}", "args": ["query"] }
+  }
+}

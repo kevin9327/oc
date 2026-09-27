@@ -1,0 +1,9 @@
+{
+  "domain": "tldr.sh",
+  "commands": {
+    "page": { "open": "https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/common/{command}.md", "args": ["command"] },
+    "linux": { "open": "https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/linux/{command}.md", "args": ["command"] },
+    "osx": { "open": "https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/osx/{command}.md", "args": ["command"] },
+    "windows": { "open": "https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/windows/{command}.md", "args": ["command"] }
+  }
+}

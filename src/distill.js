@@ -113,7 +113,50 @@ const clean = (s) => s.replace(/\s+/g, ' ').trim();
  * @returns {string}
  */
 const asHTML = (text, url = '', opts = {}) =>
-  jsonToHTML(text, url, opts) ?? youtubeToHTML(text) ?? transcriptToHTML(text) ?? feedToHTML(text) ?? text;
+  jsonToHTML(text, url, opts) ?? youtubeToHTML(text) ?? transcriptToHTML(text) ?? feedToHTML(text)
+    ?? textToHTML(text, url, opts) ?? text;
+
+// What makes a body HTML when it does not open with a tag: one of the tags
+// every page has somewhere near the top. A tag name alone is not enough,
+// since `Record<string, T>` and `a <b` look like tags to a regex too.
+const HTML_MARK = /<(!doctype|html|head|body|div|p|br|a href|span|script|style|meta|link|title|h[1-6]|table|ul|ol|li|img|article|main|section|nav|form|input|pre)[\s>/]/i;
+
+/**
+ * A plain text body as a page: a source file, a manual page, a README
+ * fetched raw. The HTML parser eats everything from a `<` to the next `>`,
+ * so a JavaScript file lost its generics and comparisons and came out as
+ * one shuffled block. Each blank-line-separated paragraph becomes its own
+ * block, keeping its line breaks, and a Markdown heading becomes a heading,
+ * so `find` and `read` work on a tldr page or an RFC the way they do on a
+ * page. The raw modes keep the whole file as one block, verbatim.
+ * @param {string} text
+ * @param {string} url
+ * @param {{full?: boolean}} [opts]
+ * @returns {string | null}
+ */
+function textToHTML(text, url = '', { full = false } = {}) {
+  const lead = text.replace(/^\uFEFF/, '').trimStart();
+  if (!lead || lead.startsWith('<') || HTML_MARK.test(lead.slice(0, 4000))) return null;
+  const body = lead.replace(/\r\n?/g, '\n').trimEnd();
+  const paragraphs = full ? [body] : body.split(/\n[ \t]*\n+/);
+  const heading = (p) => /^#{1,6} \S/.test(p) && !p.includes('\n') ? p.match(/^#+/)[0].length : 0;
+  const parts = paragraphs.map((p) => {
+    const level = heading(p);
+    return level ? `<h${level}>${escHTML(p.slice(level + 1))}</h${level}>` : `<pre>${escHTML(p)}</pre>`;
+  });
+  const first = paragraphs.find(heading);
+  let title = first ? first.replace(/^#+ /, '') : '';
+  if (!title) {
+    try {
+      title = `${new URL(url).host}${new URL(url).pathname}`;
+    } catch {
+      title = 'text';
+    }
+  }
+  // The raw modes find the file again by this mark and hand it back whole.
+  const main = full ? '<main data-text>' : '<main>';
+  return `<html><head><title>${escHTML(title)}</title></head><body>${main}\n${parts.join('\n')}\n</main></body></html>`;
+}
 
 /**
  * The link a heading is, if it is one. A search engine puts the result title
@@ -531,6 +574,10 @@ function cleanDocument(html, url = '') {
  */
 export function toMarkdown(html, url = '') {
   const { document, title } = cleanDocument(html, url);
+  // A plain text file is already the markdown of itself. Run through the
+  // converter it came back with every `#` and backtick escaped.
+  const file = document.querySelector('main[data-text] > pre');
+  if (file) return file.textContent;
   const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
   const el = bodyOf(document);
   const body = el ? turndown.turndown(el.innerHTML).trim() : '';

@@ -46,6 +46,7 @@ const ALIASES = {
   eol: 'endoflife.date',
   man: 'man7.org',
   rfc: 'rfc-editor.org',
+  gl: 'gitlab.com',
 };
 
 /** @typedef {{open?: string, keep?: string[], list?: string, sphinx?: string, nodedoc?: string, rdoc?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */

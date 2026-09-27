@@ -22,6 +22,11 @@ Notable changes per release. Releases before 0.4.0 are listed at
   `oc man page 2 open` a man7.org manual page, and `oc rfc rfc 9110` an
   RFC. GitHub gains `issue`, `pr`, `releases`, and `file`, the last of
   which reads a file raw: `oc gh file only-cli oc package.json`.
+- GitLab and Codeberg: `oc gl` and `oc codeberg` take the same verbs as
+  `oc gh` (`repo`, `user`, `search`, `issues`, `issue`, `pr`, `releases`,
+  `file`) and read each forge's public JSON API, so an issue list is one
+  line and one link per issue. A GitLab project in a subgroup is not
+  reachable yet, since the owner slot keeps its slashes.
 - A plain text body renders as a page of its own paragraphs, with line
   breaks kept and Markdown headings as headings. It went through the HTML
   parser before, which eats everything from a `<` to the next `>`, so a

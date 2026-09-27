@@ -86,6 +86,8 @@ Works on any mostly-static site with no per-site setup: news sites, blogs, docum
 | Hacker News | `oc hn` | `top`, `new`, `item <id>`, `user <name>` |
 | Reddit | `oc reddit` (via the Atom feeds on www.reddit.com) | `sub <name>`, `new <name>`, `top <name>`, `post <id>`, `user <name>`, `search <query>` |
 | GitHub | `oc gh` (`advisories` reads the advisory database API, 60 requests an hour without a token) | `repo <owner> <name>`, `user <name>`, `search <query>`, `trending`, `issues <owner> <name>`, `advisories <ecosystem> <package>`, `issue <owner> <name> <number>`, `pr <owner> <name> <number>`, `releases <owner> <name>`, `file <owner> <name> <path>` |
+| GitLab | `oc gl` (gitlab.com's API; `pr` is a merge request) | `repo <owner> <name>`, `user <name>`, `search <query>`, `issues <owner> <name>`, `issue <owner> <name> <number>`, `pr <owner> <name> <number>`, `releases <owner> <name>`, `file <owner> <name> <path>` |
+| Codeberg | `oc codeberg` (the Forgejo API) | the same verbs as GitLab |
 | X | `oc x` | `user <name>`, `post <id>` |
 | LinkedIn | `oc linkedin` | `profile <name>`, `company <name>`, `jobs <query>` (public guest views) |
 | DuckDuckGo | `oc ddg` | `search <query>`, `lite <query>` |

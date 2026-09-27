@@ -1,0 +1,23 @@
+{
+ "ok": true,
+ "data": [
+  {
+   "id": 73144,
+   "full_name": "forgejo/forgejo",
+   "description": "Beyond coding. We forge.",
+   "stars_count": 5547,
+   "forks_count": 973,
+   "html_url": "https://codeberg.org/forgejo/forgejo",
+   "updated_at": "2026-09-27T19:10:46+02:00"
+  },
+  {
+   "id": 5278,
+   "full_name": "gitnex/GitNex",
+   "description": "Android client for Forgejo(https://codeberg.org), Gitea(https://gitea.com) [OR your custom hosted server]",
+   "stars_count": 919,
+   "forks_count": 48,
+   "html_url": "https://codeberg.org/gitnex/GitNex",
+   "updated_at": "2026-09-17T17:27:08+02:00"
+  }
+ ]
+}

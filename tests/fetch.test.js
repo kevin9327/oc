@@ -521,7 +521,7 @@ KQFHEBF+5zD8lk8lDLuPgvz2dNGhRANCAATbolaWOjodAKqF5iwQv/FWI1mmr7o0
 8oGUSOW9d/9a0lraYCWoQtG19Zgl5FL7SiB4w2NhdNgwTZYocveKXzxy
 -----END PRIVATE KEY-----`;
 
-test('an IPv6 literal target tunnels through a proxy with its brackets stripped', async () => {
+test('an IPv6 literal target tunnels through a proxy with its brackets stripped', async (t) => {
   // URL.hostname keeps the brackets ("[::1]"); before the fix they reached
   // tls.connect as a DNS name and the handshake never happened, so what this
   // test is really about is the host oc hands to the identity check.
@@ -535,7 +535,20 @@ test('an IPv6 literal target tunnels through a proxy with its brackets stripped'
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end('<html><title>v6 tunnel</title></html>');
   });
-  await new Promise((r) => origin.listen(0, '::1', r));
+  // Docker's default network and many CI sandboxes have no IPv6 at all, so
+  // the loopback bind fails before anything oc does is exercised. That is the
+  // machine's limitation, not a failure in the proxy code, and it should read
+  // as a skip rather than hide a real failure in the noise.
+  try {
+    await new Promise((resolve, reject) => {
+      origin.once('error', reject);
+      origin.listen(0, '::1', resolve);
+    });
+  } catch (err) {
+    if (!['EADDRNOTAVAIL', 'EAFNOSUPPORT'].includes(err.code)) throw err;
+    t.skip(`no IPv6 loopback on this machine (${err.code})`);
+    return;
+  }
   const originPort = origin.address().port;
 
   const proxy = http.createServer();

@@ -29,6 +29,12 @@ test('a source file keeps its angle brackets, which the HTML parser used to eat'
   assert.deepEqual(texts(page), ['const a = b < c;\nfunction f() {}', 'export type X = Record<string, T>;']);
 });
 
+test('only a heading that opens the file becomes its title', () => {
+  const later = distill('Some prose first.\n\n# More information\n\nmore', 'https://x.test/README.md');
+  assert.equal(later.title, 'x.test/README.md', 'a later heading named the file');
+  assert.equal(distill('Inkscape. Draw Freely.\n======\n\nprose', 'https://x.test/README.md').title, 'Inkscape. Draw Freely.');
+});
+
 test('a body that is HTML, even one opening with text, still parses as HTML', () => {
   assert.deepEqual(texts(distill('<html><body><p>hi there</p></body></html>', 'https://x.test/')), ['hi there']);
   const fragment = distill('Hello <div><p>world</p> and <a href="/x">more</a></div>', 'https://x.test/');

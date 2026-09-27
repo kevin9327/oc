@@ -144,8 +144,12 @@ function textToHTML(text, url = '', { full = false } = {}) {
     const level = heading(p);
     return level ? `<h${level}>${escHTML(p.slice(level + 1))}</h${level}>` : `<pre>${escHTML(p)}</pre>`;
   });
-  const first = paragraphs.find(heading);
-  let title = first ? first.replace(/^#+ /, '') : '';
+  // Only a heading that opens the file names it. A README that starts with
+  // prose and has a `# More information` section further down is not titled
+  // "More information". A Setext heading (a line of = under the text) counts.
+  const opening = paragraphs[0] ?? '';
+  const setext = opening.match(/^([^\n]+)\n=+[ \t]*(?:\n|$)/);
+  let title = heading(opening) ? opening.replace(/^#+ /, '') : setext ? setext[1].trim() : '';
   if (!title) {
     try {
       title = `${new URL(url).host}${new URL(url).pathname}`;

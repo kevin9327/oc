@@ -148,10 +148,12 @@ function encode(value, template, arg) {
   // A path slot that starts with @ is a copied handle (@name, @channel).
   // encodeURIComponent would turn it into %40 and miss the user, and YouTube's
   // template already has the @ in the URL. Search queries keep it, so a
-  // mention in a query is still the thing being searched for.
-  const raw = !query && value.startsWith('@') && value.length > 1 ? value.slice(1) : value;
-  const encoded = encodeURIComponent(raw);
-  return query ? encoded : encoded.replaceAll('%2F', '/');
+  // mention in a query is still the thing being searched for. A handle never
+  // contains a slash, so @scope/name is a scoped npm package, not a handle:
+  // stripping its @ asked the registry for a different package.
+  const handle = !query && value.startsWith('@') && value.length > 1 && !value.includes('/');
+  const encoded = encodeURIComponent(handle ? value.slice(1) : value);
+  return query ? encoded : encoded.replaceAll('%2F', '/').replaceAll('%40', '@');
 }
 
 /**

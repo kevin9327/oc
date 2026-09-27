@@ -7,6 +7,12 @@ Notable changes per release. Releases before 0.4.0 are listed at
 
 ### Fixed
 
+- A site argument shaped like `@scope/name` keeps its `@`. The rule that
+  drops the `@` from a copied handle (`oc x user @openai`) applied to npm
+  scoped packages too, so `@types/node` would have asked for `types/node`,
+  a different package. A handle never contains a slash, so the slash now
+  tells the two apart.
+
 - `oc node search` no longer lists a property's type line as a heading of
   its own. `Type: {AbortSignal}` under `abortController.signal` passed as a
   heading because it contains the word `signal`, and 74 such lines in the

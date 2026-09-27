@@ -1,0 +1,8 @@
+{
+  "domain": "users.rust-lang.org",
+  "commands": {
+    "latest": { "open": "https://users.rust-lang.org/latest.json", "list": "topic_list.topics", "keep": ["title", "{posts_count} posts, last {last_posted_at}", "has_accepted_answer", "/raw/{id}"] },
+    "search": { "open": "https://users.rust-lang.org/search.json?q={query}", "list": "topics", "keep": ["title", "{posts_count} posts, started {created_at}", "has_accepted_answer", "/raw/{id}"], "args": ["query"] },
+    "topic": { "open": "https://users.rust-lang.org/raw/{id}", "args": ["id"] }
+  }
+}

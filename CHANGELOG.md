@@ -52,9 +52,19 @@ Notable changes per release. Releases before 0.4.0 are listed at
   cache. Titles are short prose headings there, so a section matched only
   in its text shows a line of it, and stop words and plural endings do not
   decide the ranking.
+- Discourse forums: `oc urlo`, `oc swift`, and `oc nixos` take `latest`,
+  `search <query>`, and `topic <id>` on users.rust-lang.org,
+  forums.swift.org, and discourse.nixos.org. The lists read the forum's
+  JSON, and a topic reads `/raw/{id}`, the whole thread as Markdown, since
+  the topic page itself renders with JavaScript. A `keep` template that
+  starts with `/` or `https://` is the item's link, so each topic in a list
+  is one `do <n>` away.
 
 ### Fixed
 
+- A body the server sends as `text/plain` or `text/markdown` reads as text
+  even when it mentions a tag. A forum post asking about `<div>` or `<br>`
+  had turned the whole thread into HTML, and the tags it quoted vanished.
 - A docs page built with Material for MkDocs led with the whole site nav,
   because the theme puts both sidebars inside `<main>`. A main that holds
   navigation and one article with most of its text now leads with the

@@ -35,6 +35,15 @@ test('only a heading that opens the file becomes its title', () => {
   assert.equal(distill('Inkscape. Draw Freely.\n======\n\nprose', 'https://x.test/README.md').title, 'Inkscape. Draw Freely.');
 });
 
+test('a Markdown file that opens with an HTML logo block is still text', () => {
+  const readme = '<div align="center">\n  <h1>Welcome</h1>\n</div>\n\nHi there! Tired of big platforms?\n\n## What does it offer?';
+  const lines = texts(distill(readme, 'https://codeberg.org/forgejo/forgejo/raw/branch/HEAD/README.md'));
+  assert.ok(lines.includes('Hi there! Tired of big platforms?'), `the prose after the logo was dropped:\n${lines.join('\n')}`);
+  assert.ok(lines.includes('What does it offer?'));
+  // A text path that answers with a whole HTML document is a page.
+  assert.deepEqual(texts(distill('<!doctype html><html><body><p>hi</p></body></html>', 'https://x.test/notes.md')), ['hi']);
+});
+
 test('a body that is HTML, even one opening with text, still parses as HTML', () => {
   assert.deepEqual(texts(distill('<html><body><p>hi there</p></body></html>', 'https://x.test/')), ['hi there']);
   const fragment = distill('Hello <div><p>world</p> and <a href="/x">more</a></div>', 'https://x.test/');

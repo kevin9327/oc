@@ -121,6 +121,15 @@ const asHTML = (text, url = '', opts = {}) =>
 // since `Record<string, T>` and `a <b` look like tags to a regex too.
 const HTML_MARK = /<(!doctype|html|head|body|div|p|br|a href|span|script|style|meta|link|title|h[1-6]|table|ul|ol|li|img|article|main|section|nav|form|input|pre)[\s>/]/i;
 
+const TEXT_PATH = /\.(md|markdown|txt|rst|adoc)$/i;
+const pathOf = (url) => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return '';
+  }
+};
+
 /**
  * A plain text body as a page: a source file, a manual page, a README
  * fetched raw. The HTML parser eats everything from a `<` to the next `>`,
@@ -136,7 +145,11 @@ const HTML_MARK = /<(!doctype|html|head|body|div|p|br|a href|span|script|style|m
  */
 function textToHTML(text, url = '', { full = false } = {}) {
   const lead = text.replace(/^\uFEFF/, '').trimStart();
-  if (!lead || lead.startsWith('<') || HTML_MARK.test(lead.slice(0, 4000))) return null;
+  if (!lead || /^<(!doctype|html)[\s>]/i.test(lead)) return null;
+  // A README often opens with a centred logo in a <div>, and read as HTML
+  // everything after it was loose text the page reader dropped. A path that
+  // names a text format is text unless it is a whole HTML document.
+  if (!TEXT_PATH.test(pathOf(url)) && (lead.startsWith('<') || HTML_MARK.test(lead.slice(0, 4000)))) return null;
   const body = lead.replace(/\r\n?/g, '\n').trimEnd();
   const paragraphs = full ? [body] : body.split(/\n[ \t]*\n+/);
   const heading = (p) => /^#{1,6} \S/.test(p) && !p.includes('\n') ? p.match(/^#+/)[0].length : 0;

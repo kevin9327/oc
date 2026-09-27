@@ -3,7 +3,8 @@
  * directly, so `oc hn item 4711` gets there without the agent knowing that
  * Hacker News spells it /item?id=. A shortcut is almost always a URL: it
  * resolves to one and hands off to the same fetch and render path `oc open`
- * uses, so nothing here can change what a page costs or how it reads. The
+ * uses, so nothing here can change what a page costs or how it reads, except
+ * that a shortcut at a JSON endpoint may name the fields worth showing. The
  * other shapes are searches cli.js runs itself and renders like any other
  * page: `sphinx` and `rdoc`, for docs sites whose search only exists as a
  * static index file, `nodedoc`, for the Node.js API docs, which ship their
@@ -38,9 +39,13 @@ const ALIASES = {
   gcp: 'cloud.google.com',
   learn: 'learn.microsoft.com',
   wiki: 'wikipedia.org',
+  npm: 'npmjs.com',
+  pip: 'pypi.org',
+  cargo: 'crates.io',
+  gem: 'rubygems.org',
 };
 
-/** @typedef {{open?: string, sphinx?: string, nodedoc?: string, rdoc?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */
+/** @typedef {{open?: string, keep?: string[], list?: string, sphinx?: string, nodedoc?: string, rdoc?: string, api?: string, page?: string, results?: string, fields?: Record<string, string>, total?: string, args?: string[]}} Shortcut */
 /** @typedef {{domain: string, commands: Record<string, Shortcut>}} Site */
 
 /** @type {Map<string, Site>|null} */
@@ -97,7 +102,7 @@ const verbs = (site) =>
  * instead, since the agent has the right site and only needs the verb list.
  * @param {string} name
  * @param {string[]} args
- * @returns {{url?: string, sphinx?: string, nodedoc?: string, rdoc?: string, api?: Shortcut, query?: string, domain: string, command: string}|null}
+ * @returns {{url?: string, view?: {keep: string[], list?: string}, sphinx?: string, nodedoc?: string, rdoc?: string, api?: Shortcut, query?: string, domain: string, command: string}|null}
  */
 export function resolveSite(name, args) {
   const site = sites().get(name.toLowerCase());
@@ -130,7 +135,11 @@ export function resolveSite(name, args) {
   const url = need.reduce(
     (open, arg, i) => open.replaceAll(`{${arg}}`, encode(values[i], def.open, arg)),
     def.open);
-  return { url, domain: site.domain, command: verb };
+  // A shortcut at a JSON endpoint may say which fields to show. The choice
+  // rides along to the render and touches nothing else: the URL is fetched,
+  // cached, and remembered exactly as `oc open` would.
+  const view = def.keep?.length ? { keep: def.keep, list: def.list } : undefined;
+  return { url, view, domain: site.domain, command: verb };
 }
 
 /**

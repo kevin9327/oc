@@ -1,0 +1,54 @@
+{
+ "info": {
+  "name": "requests",
+  "version": "2.34.2",
+  "summary": "Python HTTP for Humans.",
+  "requires_python": ">=3.10",
+  "license": "Apache-2.0",
+  "license_expression": null,
+  "project_urls": {
+   "Documentation": "https://requests.readthedocs.io",
+   "Source": "https://github.com/psf/requests"
+  },
+  "requires_dist": [
+   "charset_normalizer<4,>=2",
+   "idna<4,>=2.5",
+   "urllib3<3,>=1.26",
+   "certifi>=2023.5.7",
+   "PySocks!=1.5.7,>=1.5.6; extra == \"socks\"",
+   "chardet<8,>=3.0.2; extra == \"use-chardet-on-py3\""
+  ],
+  "author_email": "Kenneth Reitz <me@kennethreitz.org>",
+  "package_url": "https://pypi.org/project/requests/",
+  "description_content_type": "text/markdown",
+  "home_page": null
+ },
+ "last_serial": 37059094,
+ "urls": [
+  {
+   "filename": "requests-2.34.2-py3-none-any.whl",
+   "packagetype": "bdist_wheel",
+   "python_version": "py3",
+   "size": 73075,
+   "upload_time": "2026-05-14T19:25:26",
+   "digests": {
+    "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+   },
+   "yanked": false,
+   "url": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl"
+  },
+  {
+   "filename": "requests-2.34.2.tar.gz",
+   "packagetype": "sdist",
+   "python_version": "source",
+   "size": 142856,
+   "upload_time": "2026-05-14T19:25:27",
+   "digests": {
+    "sha256": "f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"
+   },
+   "yanked": false,
+   "url": "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz"
+  }
+ ],
+ "vulnerabilities": []
+}

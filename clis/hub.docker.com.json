@@ -1,0 +1,9 @@
+{
+  "domain": "hub.docker.com",
+  "commands": {
+    "official": { "open": "https://hub.docker.com/v2/repositories/library/{name}", "keep": ["name", "namespace", "description", "star_count", "pull_count", "last_updated"], "args": ["name"] },
+    "repo": { "open": "https://hub.docker.com/v2/repositories/{owner}/{name}", "keep": ["name", "namespace", "description", "star_count", "pull_count", "last_updated"], "args": ["owner", "name"] },
+    "tags": { "open": "https://hub.docker.com/v2/repositories/{owner}/{name}/tags?page_size=25", "list": "results", "keep": ["{name} {last_updated}"], "args": ["owner", "name"] },
+    "search": { "open": "https://hub.docker.com/v2/search/repositories?query={query}&page_size=20", "list": "results", "keep": ["{repo_name} {is_official} {star_count} stars: {short_description}"], "args": ["query"] }
+  }
+}

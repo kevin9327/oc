@@ -1,0 +1,9 @@
+{
+  "domain": "crates.io",
+  "commands": {
+    "crate": { "open": "https://crates.io/api/v1/crates/{name}", "keep": ["crate.name", "crate.max_stable_version", "crate.description", "versions.0.license", "versions.0.rust_version", "versions.0.edition", "crate.documentation", "crate.repository", "crate.homepage"], "args": ["name"] },
+    "deps": { "open": "https://crates.io/api/v1/crates/{name}/{version}/dependencies", "list": "dependencies", "keep": ["{crate_id} {req} {kind} {optional} {target}"], "args": ["name", "version"] },
+    "docs": { "open": "https://docs.rs/{name}", "args": ["name"] },
+    "search": { "api": "https://crates.io/api/v1/crates?q={query}&per_page=20", "page": "https://crates.io/search?q={query}", "results": "crates", "fields": { "title": "name", "url": "https://docs.rs/{id}", "text": "{max_stable_version} {description}" }, "total": "meta.total", "args": ["query"] }
+  }
+}

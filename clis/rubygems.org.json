@@ -1,0 +1,8 @@
+{
+  "domain": "rubygems.org",
+  "commands": {
+    "gem": { "open": "https://rubygems.org/api/v1/gems/{name}.json", "keep": ["name", "version", "info", "licenses", "homepage_uri", "source_code_uri", "documentation_uri", "changelog_uri"], "args": ["name"] },
+    "versions": { "open": "https://rubygems.org/api/v1/versions/{name}.json", "keep": ["{number} {created_at} {prerelease}"], "args": ["name"] },
+    "search": { "api": "https://rubygems.org/api/v1/search.json?query={query}", "page": "https://rubygems.org/search?query={query}", "results": "", "fields": { "title": "name", "url": "project_uri", "text": "{version} {info}" }, "args": ["query"] }
+  }
+}

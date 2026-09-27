@@ -15,6 +15,12 @@ import TurndownService from 'turndown';
  * @property {string} title
  * @property {Block[]} blocks
  * @property {string} [base] - document base URL from <base href>, if the page set one
+ *
+ * @typedef {Object} View
+ * @property {string[]} keep - fields to show, in order: a dot path
+ *   ('info.version') or a template joining several ('{crate_id} {req}')
+ * @property {string} [list] - dot path to the array the fields apply to each
+ *   item of; absent means the response itself, whether one object or a list
  */
 
 // Where the compact view cuts a text block. It lives here because numbering
@@ -166,10 +172,12 @@ function isFollowableHref(href, base, pageUrl) {
  * numbers.
  * @param {string} html
  * @param {string} url
+ * @param {{view?: View|null}} [opts] - a site shortcut's choice of JSON fields,
+ *   which only a JSON body reads
  * @returns {Page}
  */
-export function distill(html, url = '') {
-  const { document } = parseHTML(asHTML(html, url));
+export function distill(html, url = '', { view = null } = {}) {
+  const { document } = parseHTML(asHTML(html, url, { view }));
   const title = clean(document.querySelector('title')?.textContent ?? '');
   const base = documentBase(document, url);
   /** @type {Block[]} */
@@ -776,6 +784,7 @@ const BODY_CAP = 4000;
 const EPOCH_S = [1e9, 4e9];
 const EPOCH_MS = [1e12, 4e12];
 const DATE_KEY = /(^|_)(date|at|time|timestamp|created|updated|published|modified)$/i;
+const ISO_DATE = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:?\d\d)$/;
 
 // Named entities worth knowing without a table: the five XML ones plus the
 // space. Everything else arrives numeric.
@@ -853,6 +862,11 @@ function renderValue(key, value) {
       : value >= EPOCH_MS[0] && value < EPOCH_MS[1] ? value
       : null;
     if (ms !== null) return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+  }
+  // An ISO timestamp under the same keys reads the same way: the fraction
+  // and zone suffix are a third of its characters and never the point.
+  if (typeof value === 'string' && DATE_KEY.test(key) && ISO_DATE.test(value)) {
+    return value.slice(0, 19).replace('T', ' ');
   }
   return typeof value === 'string' ? decodeEntities(value) : String(value);
 }
@@ -965,11 +979,12 @@ function constantFields(rows) {
  * Returns null for anything that is not JSON.
  * @param {string} text
  * @param {string} url
- * @param {{full?: boolean}} [opts] - full keeps every field, which is what the
- *   raw modes are for; the compact view keeps the ones that earn their tokens
+ * @param {{full?: boolean, view?: View|null}} [opts] - full keeps every
+ *   field, which is what the raw modes are for; the compact view keeps the
+ *   ones that earn their tokens, or the ones a site shortcut's view names
  * @returns {string | null}
  */
-export function jsonToHTML(text, url = '', { full = false } = {}) {
+export function jsonToHTML(text, url = '', { full = false, view = null } = {}) {
   if (!/^\s*[[{]/.test(text.slice(0, 200))) return null;
   let data;
   try {
@@ -978,6 +993,14 @@ export function jsonToHTML(text, url = '', { full = false } = {}) {
     return null;
   }
   if (!data || typeof data !== 'object') return null;
+
+  // A shortcut that names its fields knows the response better than the
+  // scoring below can guess, so its choice wins, except in the raw modes,
+  // which exist to show what a choice left out.
+  if (!full && view?.keep?.length) {
+    const chosen = chosenToHTML(data, url, view);
+    if (chosen) return chosen;
+  }
 
   const { items, meta } = mainArray(data);
   const flats = items.map((item) => (isPlain(item) ? flattenItem(item) : null));
@@ -1091,6 +1114,139 @@ export function jsonToHTML(text, url = '', { full = false } = {}) {
   parts.push(...metaLong);
 
   const count = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
+  return `<html><head><title>${escHTML(jsonTitle(url, count))}</title></head><body>\n${parts.join('\n')}\n</body></html>`;
+}
+
+/**
+ * Read a dot path out of a response ('info.version', 'versions.0.license').
+ * The empty path is the response itself, for an API whose answer is the
+ * bare list.
+ * @param {any} obj
+ * @param {string} path
+ * @returns {any}
+ */
+export const pick = (obj, path) =>
+  path === '' ? obj : String(path).split('.').reduce((o, key) => (o == null ? undefined : o[key]), obj);
+
+const SLOT = /\{([^{}]+)\}/g;
+
+/**
+ * One chosen field as a string. Booleans read as flags: a true one prints the
+ * field's own name and a false one nothing, so a dependency row reads
+ * `bytes ^1 normal optional` instead of repeating `optional: false` on every
+ * line. An object of scalars (npm's `dependencies`, PyPI's `project_urls`)
+ * prints as `key=value` pairs, since naming the field was the request to see
+ * inside it.
+ * @param {string} path
+ * @param {any} value
+ * @returns {string}
+ */
+function renderField(path, value) {
+  const key = path.split('.').pop() ?? path;
+  if (typeof value === 'boolean') return value ? key : '';
+  if (isPlain(value)) {
+    return Object.entries(value)
+      .filter(([, v]) => v !== null && typeof v !== 'object')
+      .map(([k, v]) => `${k}=${renderValue(k, v)}`)
+      .join(', ');
+  }
+  return renderValue(key, value);
+}
+
+/**
+ * Fill the `{path}` slots of a template from one item. A template whose
+ * every slot came up empty is empty itself rather than its own literal text,
+ * so a changed API reads as missing fields and not as a page of bare
+ * punctuation.
+ * @param {string} template
+ * @param {any} item
+ * @returns {string}
+ */
+export function fillTemplate(template, item) {
+  let filled = 0;
+  const text = template.replace(SLOT, (_, path) => {
+    const value = renderField(path, pick(item, path));
+    if (value) filled++;
+    return value;
+  });
+  return filled ? clean(text) : '';
+}
+
+/**
+ * The view a site shortcut asked for: exactly the fields it named, in the
+ * order it named them, for the one object the response is or for each item
+ * of the list it points at. This exists because the generic view below has
+ * to guess, and on registry data it guesses wrong: PyPI's package endpoint
+ * rendered the wheel files and their hashes instead of the version, and a
+ * crates.io dependency list showed row ids and dropped the field that says
+ * whether a dependency is dev-only.
+ *
+ * A field holding a URL becomes a link of its own, so `oc do` follows it. A
+ * name-like first field is the item's title and drops its label. Short
+ * fields that follow each other share a line, the way the generic view
+ * joins them. Returns null when no item held any of the named fields (an
+ * error body, an API that changed shape), so the response renders untouched
+ * and the real reason stays visible.
+ * @param {any} data
+ * @param {string} url
+ * @param {View} view
+ * @returns {string | null}
+ */
+function chosenToHTML(data, url, view) {
+  const list = view.list == null ? (Array.isArray(data) ? data : [data]) : pick(data, view.list);
+  if (!Array.isArray(list)) return null;
+  const parts = [];
+  for (const item of list) {
+    if (!isPlain(item)) continue;
+    /** @type {Array<{text: string, label?: string, link?: string}>} */
+    const entries = [];
+    for (const field of view.keep) {
+      if (field.includes('{')) {
+        const text = fillTemplate(field, item);
+        if (text) entries.push({ text });
+        continue;
+      }
+      const value = pick(item, field);
+      const text = renderField(field, value);
+      if (!text) continue;
+      const label = field.split('.').pop() ?? field;
+      if (isURL(text)) entries.push({ text, label, link: text });
+      else entries.push({ text, label: typeof value === 'boolean' ? undefined : label });
+    }
+    if (!entries.length) continue;
+    parts.push('<article>');
+    const [first, ...rest] = entries;
+    // A name-like first field is the item's title: bare, on a line of its own.
+    const titled = first.label && !first.link && TITLE_KEYS.includes(first.label) && first.text.length <= TITLE_MAX;
+    if (titled) parts.push(`<p>${escHTML(first.text)}</p>`);
+    const inline = [];
+    let width = 0;
+    const flush = () => {
+      if (inline.length) parts.push(`<p>${escHTML(inline.join(' | '))}</p>`);
+      inline.length = 0;
+      width = 0;
+    };
+    for (const entry of titled ? rest : entries) {
+      const line = entry.label ? `${entry.label}: ${entry.text}` : entry.text;
+      if (entry.link) {
+        flush();
+        parts.push(`<p><a href="${escHTML(entry.link)}">${escHTML(line)}</a></p>`);
+      } else if (line.length > TEXT_CAP) {
+        flush();
+        parts.push(`<p>${escHTML(line)}</p>`);
+      } else {
+        // A shared line that outgrew the cap would be cut, and these fields
+        // were asked for by name, so the line wraps instead.
+        if (inline.length && width + line.length + 3 > TEXT_CAP) flush();
+        width = inline.length ? width + line.length + 3 : line.length;
+        inline.push(line);
+      }
+    }
+    flush();
+    parts.push('</article>');
+  }
+  if (!parts.length) return null;
+  const count = `${list.length} ${list.length === 1 ? 'item' : 'items'}`;
   return `<html><head><title>${escHTML(jsonTitle(url, count))}</title></head><body>\n${parts.join('\n')}\n</body></html>`;
 }
 

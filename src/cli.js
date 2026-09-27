@@ -190,6 +190,11 @@ async function main() {
   // definition for, and a shortcut is only ever a URL, so it resolves to one
   // here and the rest of this function never learns it was not typed.
   let search = null;
+  // The fields a shortcut chose to show of a JSON response, if it chose any.
+  // A view is a deliberate cut, so a thin render of a heavy response is the
+  // choice working, not a gated page: the thin-content verdict stays out of
+  // it, and only a render with no text at all still fails.
+  let view = null;
   if (!COMMANDS.has(command)) {
     const site = resolveSite(command, args);
     if (!site) throw new Error(`unknown command '${command}', run oc --help`);
@@ -199,6 +204,7 @@ async function main() {
       command = 'search';
     } else {
       args = [site.url];
+      view = site.view ?? null;
       command = 'open';
     }
   }
@@ -276,9 +282,9 @@ async function main() {
       };
       const htmlTokens = estimateTokens(html);
       if (values.json) {
-        const page = distill(html, finalUrl);
+        const page = distill(html, finalUrl, { view });
         const auth = authFailure(page, finalUrl, { hadAuth });
-        const failure = auth ?? contentFailure(contentTokens(page), htmlTokens);
+        const failure = auth ?? contentFailure(contentTokens(page), view ? 0 : htmlTokens);
         // Always present, so a caller can branch on the field rather than on
         // whether a field it was hoping for turned up.
         console.log(JSON.stringify({ ...page, empty: failure != null }));
@@ -320,9 +326,9 @@ async function main() {
         }
         return;
       }
-      const page = distill(html, finalUrl);
+      const page = distill(html, finalUrl, { view });
       const auth = authFailure(page, finalUrl, { hadAuth });
-      const failure = auth ?? contentFailure(contentTokens(page), htmlTokens);
+      const failure = auth ?? contentFailure(contentTokens(page), view ? 0 : htmlTokens);
       if (auth) {
         if (jar) clearCookieJar(sessionName);
         noContent(finalUrl, auth);

@@ -1,0 +1,9 @@
+{
+  "domain": "npmjs.com",
+  "commands": {
+    "pkg": { "open": "https://registry.npmjs.org/{name}/latest", "keep": ["name", "version", "description", "license", "engines.node", "homepage", "repository.url", "dependencies", "peerDependencies"], "args": ["name"] },
+    "version": { "open": "https://registry.npmjs.org/{name}/{version}", "keep": ["name", "version", "description", "license", "engines.node", "homepage", "repository.url", "dependencies", "peerDependencies"], "args": ["name", "version"] },
+    "tags": { "open": "https://registry.npmjs.org/-/package/{name}/dist-tags", "keep": ["latest", "next", "beta", "rc", "canary", "experimental"], "args": ["name"] },
+    "search": { "api": "https://registry.npmjs.org/-/v1/search?text={query}&size=20", "page": "https://www.npmjs.com/search?q={query}", "results": "objects", "fields": { "title": "package.name", "url": "package.links.npm", "text": "{package.version} {package.description}" }, "total": "total", "args": ["query"] }
+  }
+}

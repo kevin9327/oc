@@ -212,6 +212,32 @@ test('find opens the snippet on the match, not on the start of a long block', ()
   assert.ok(!out.includes('x'.repeat(250)), `snippet was not trimmed:\n${out.slice(0, 200)}`);
 });
 
+test('neither edge of a find snippet nor a cut read splits an emoji', () => {
+  // An emoji is two UTF-16 units. The snippet window opens 60 units before
+  // the match and runs 200, so here it opened inside the first 😀 and closed
+  // inside the second, and printed a lone half of each.
+  const text = `ab😀${'x'.repeat(59)}needle${'y'.repeat(133)}😀${'z'.repeat(50)}`;
+  saveSession('emoji', {
+    url: 'https://example.test/emoji',
+    blocks: [1, 2, 3].map((n) => ({ n, type: 'text', text: n === 1 ? text : `needle ${'w'.repeat(1000)}` })),
+    cursor: null,
+  });
+  const out = find('needle', { session: 'emoji', budget: 40 });
+  const line = out.split('\n')[1];
+  assert.ok(line.isWellFormed(), `half an emoji in ${JSON.stringify(line)}`);
+  // The opening edge takes the whole 😀, the closing one leaves it out.
+  assert.ok(line.startsWith('[1] ... 😀x') && line.endsWith('y ...'), `the window moved: ${line}`);
+  // read cuts a block over its whole budget at budget * 4 characters; the
+  // 😀 here straddles character 40, after the "[1] " tag.
+  saveSession('emoji-read', {
+    url: 'https://example.test/emoji',
+    blocks: [{ n: 1, type: 'text', text: `${'x'.repeat(35)}😀${'y'.repeat(100)}` }],
+    cursor: null,
+  });
+  const cut = read(1, { session: 'emoji-read', budget: 10 });
+  assert.ok(cut.isWellFormed(), `half an emoji in ${JSON.stringify(cut)}`);
+});
+
 test('find answers with the whole match when the matches fit', () => {
   open();
   // The point of the whole path: the text an agent would have spent a `read

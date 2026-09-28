@@ -250,7 +250,10 @@ const truncate = (s) => {
   // instead of falling through to the sentence rule below.
   const line = s.slice(0, TEXT_CAP).lastIndexOf('\n');
   if (line >= TEXT_CAP * SENTENCE_FLOOR) return `${s.slice(0, line)} ... +${num(s.length - line)} chars`;
-  let cut = TEXT_CAP;
+  // A character past U+FFFF (an emoji, a rare CJK ideograph) is two UTF-16
+  // units. A cut between them printed half of one, which a terminal shows as
+  // the replacement character, so the cut steps back to before it.
+  let cut = /[\uD800-\uDBFF]/.test(s[TEXT_CAP - 1]) ? TEXT_CAP - 1 : TEXT_CAP;
   for (const m of s.slice(0, TEXT_CAP).matchAll(SENTENCE_END)) {
     const end = (m.index ?? 0) + m[0].length;
     if (end >= TEXT_CAP * SENTENCE_FLOOR) cut = end;

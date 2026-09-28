@@ -38,8 +38,9 @@ const field = (item, spec) =>
 export function resultsToHTML(def, query, data, apiURL) {
   const host = new URL(apiURL).host;
   const fields = def.fields ?? {};
-  const list = pick(data, def.results ?? 'results');
-  const items = (Array.isArray(list) ? list : []).slice(0, MAX_RESULTS).map((item) => {
+  const picked = pick(data, def.results ?? 'results');
+  const list = Array.isArray(picked) ? picked : [];
+  const items = list.slice(0, MAX_RESULTS).map((item) => {
     const href = new URL(String(field(item, fields.url ?? 'url') ?? ''), apiURL).href;
     const title = String(field(item, fields.title ?? 'title') || href);
     const text = fields.text ? String(field(item, fields.text) ?? '').trim() : '';
@@ -47,9 +48,14 @@ export function resultsToHTML(def, query, data, apiURL) {
       + `${text ? ` ${escapeHTML(text)}` : ''}</li>`;
   });
   const total = Number(def.total ? pick(data, def.total) : NaN);
-  const count = Number.isFinite(total) && total >= items.length ? total : items.length;
+  // An answer with no total says only how many results it carried, and one
+  // cut to fit is a floor: RubyGems answers 30 a page, so "rails" read as 20
+  // pages matching and nothing saying the list went on.
+  const known = Number.isFinite(total) && total >= items.length;
+  const count = known ? total : list.length;
+  const floor = !known && count > items.length ? 'at least ' : '';
   const summary = items.length
-    ? `${count} page${count === 1 ? '' : 's'} match, ranked by the site's own search`
+    ? `${floor}${count} page${count === 1 ? '' : 's'} match, ranked by the site's own search`
       + `${count > items.length ? `, top ${items.length} shown` : ''}:`
     : `nothing in the site's own search matches; try fewer or different words`;
   return `<html><head><title>${escapeHTML(host)} search: ${escapeHTML(query)}</title></head><body><main>`

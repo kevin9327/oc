@@ -33,6 +33,17 @@ test('the site total is reported, and result count is what the page shows', () =
   assert.match(resultsToHTML(DEF, 'map', DATA, API), /2696 pages match, ranked by the site's own search, top 2 shown:/);
 });
 
+test('with no total, a list cut to fit says it went on', () => {
+  // RubyGems answers a search with a bare array of 30 and no total. Cut to
+  // 20, the page said 20 pages match and nothing about the other ten.
+  const gems = Array.from({ length: 30 }, (_, i) => ({ name: `gem${i}`, url: `https://rubygems.org/gems/gem${i}` }));
+  const def = { results: '', fields: { title: 'name', url: 'url' } };
+  const api = 'https://rubygems.org/api/v1/search.json?query=rails';
+  assert.match(resultsToHTML(def, 'rails', gems, api), /at least 30 pages match, ranked by the site's own search, top 20 shown:/);
+  // A list that fits is still counted as it is.
+  assert.match(resultsToHTML(def, 'rails', gems.slice(0, 5), api), /<p>5 pages match, ranked by the site's own search:<\/p>/);
+});
+
 test('a title is response data, never markup on the results page', () => {
   const html = resultsToHTML(DEF, 'map', DATA, API);
   assert.doesNotMatch(html, /<script/);

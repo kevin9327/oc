@@ -1036,6 +1036,7 @@ test('reddit.com is asked with the firefox fingerprint first', () => withoutProx
   assert.deepEqual(identityOrder('https://www.reddit.com/r/ClaudeAI/.rss'), ['firefox', 'chrome']);
   assert.deepEqual(identityOrder('https://old.reddit.com/r/ClaudeAI/'), ['firefox', 'chrome']);
   assert.deepEqual(identityOrder('https://reddit.com/'), ['firefox', 'chrome']);
+  assert.deepEqual(identityOrder('https://redd.it/1w48zcr'), ['firefox', 'chrome']);
   assert.deepEqual(identityOrder('https://notreddit.com/'), ['chrome', 'firefox']);
   assert.deepEqual(identityOrder('https://reddit.com.example/'), ['chrome', 'firefox']);
   assert.deepEqual(identityOrder('https://news.ycombinator.com/'), ['chrome', 'firefox']);
@@ -1073,6 +1074,39 @@ test('reddit.com page URLs are read as their atom feeds, feeds and everything el
   assert.equal(redditFeedURL('https://reddit.com.example/r/ClaudeAI/'), null);
   assert.equal(redditFeedURL('not a url'), null);
 });
+
+test('a reddit short or share link is read as the feed of the post it redirects to', () => withoutProxyEnv(async () => {
+  // redd.it/<id> and the app's /r/<sub>/s/<code> share links answer with a
+  // 301 to the post page, which is the login wall the feed mapping exists to
+  // step around. Mapping only the URL as typed left both at that wall.
+  const redirecting = () => {
+    const asked = [];
+    const get = (url) => {
+      asked.push(url);
+      if (url === 'https://redd.it/abc123') {
+        return Promise.resolve({ status: 301, headers: new Map([['location', 'https://www.reddit.com/comments/abc123']]), url });
+      }
+      return Promise.resolve({
+        status: 200,
+        headers: new Map([['content-type', 'application/atom+xml']]),
+        text: () => Promise.resolve('<feed><title>post</title></feed>'),
+        url,
+      });
+    };
+    return { get, asked };
+  };
+  const impers = redirecting();
+  const page = await viaImpers(impers, 'https://redd.it/abc123');
+  assert.deepEqual(impers.asked, ['https://redd.it/abc123', 'https://www.reddit.com/comments/abc123/.rss']);
+  assert.equal(page.url, 'https://www.reddit.com/comments/abc123/.rss');
+
+  // A reader logged in to reddit.com asked for the page, and gets it.
+  const { jarFromCookieHeader, createJarHandle } = await import('../src/cookies.js');
+  const jar = createJarHandle('test', jarFromCookieHeader('reddit_session=x', 'reddit.com'));
+  const logged = redirecting();
+  await viaImpers(logged, 'https://redd.it/abc123', jar);
+  assert.deepEqual(logged.asked, ['https://redd.it/abc123', 'https://www.reddit.com/comments/abc123']);
+}));
 
 test('a refused firefox fingerprint on reddit.com falls back to chrome', () => withoutProxyEnv(async () => {
   const impers = fakeImpers(['firefox']);

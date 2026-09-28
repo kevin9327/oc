@@ -131,8 +131,9 @@ const pathOf = (url) => {
 };
 
 // One line of a Markdown link list: `- [title](url)`, then an optional
-// description. llms.txt is made of these.
-const LINK_ITEM = /^[ \t]*[-*+][ \t]+\[([^\]\n]+)\]\(([^()\s]+)\)(.*)$/;
+// description. llms.txt is made of these. A title may hold a bracketed
+// word of its own, as Markdown allows: drizzle's reads `[Joins [SQL]]`.
+const LINK_ITEM = /^[ \t]*[-*+][ \t]+\[((?:[^[\]\n]|\[[^[\]\n]*\])+)\]\(([^()\s]+)\)(.*)$/;
 
 /**
  * A paragraph that is nothing but a Markdown link list, as a list of real

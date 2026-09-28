@@ -623,14 +623,23 @@ export function proxyGet(url, proxy, headers = {}, tlsOpts = {}) {
  *   Content-Type the server declared
  */
 export async function fetchPage(url, { jar } = {}) {
-  let target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-  // A reader with no cookies for reddit.com gets the feed where the page
-  // would be a login wall; one who logged in gets the page it asked for.
-  if (!jar?.cookieHeaderFor(target)) target = redditFeedURL(target) ?? target;
+  const target = readableURL(/^https?:\/\//i.test(url) ? url : `https://${url}`, jar);
   await assertSafeTarget(target);
   const impers = await loadImpers();
   return impers ? viaImpers(impers, target, jar) : viaFetch(target, jar);
 }
+
+/**
+ * The URL to ask for in place of this one. A reader with no cookies for
+ * reddit.com gets the feed where the page would be a login wall; one who
+ * logged in gets the page it asked for. Every redirect hop goes through this
+ * too: redd.it short links and the app's /r/<sub>/s/<code> share links answer
+ * with a 301 to the post page, the very wall the feed steps around.
+ * @param {string} url
+ * @param {{ cookieHeaderFor(url: string): string|undefined }} [jar]
+ * @returns {string}
+ */
+const readableURL = (url, jar) => (jar?.cookieHeaderFor(url) ? url : redditFeedURL(url) ?? url);
 
 /**
  * Follow redirects one hop at a time, validating each destination before the
@@ -644,9 +653,11 @@ export async function fetchPage(url, { jar } = {}) {
  * process.
  * @param {(url: string) => Promise<any>} get - one request, redirects not followed
  * @param {string} start
+ * @param {{onResponse?: (url: string, res: any) => void, rewrite?: (url: string) => string}} [opts] -
+ *   rewrite names the URL to ask for in place of a hop's Location
  * @returns {Promise<{res: any, url: string}>} the first non-redirect response
  */
-export async function followRedirects(get, start, { onResponse } = {}) {
+export async function followRedirects(get, start, { onResponse, rewrite } = {}) {
   let current = start;
   for (let i = 0; ; i++) {
     if (i > MAX_REDIRECTS) throw new Error(`too many redirects for ${start}`);
@@ -655,7 +666,8 @@ export async function followRedirects(get, start, { onResponse } = {}) {
     const status = res.status ?? res.statusCode ?? 0;
     const location = res.headers.get('location');
     if (status >= 300 && status < 400 && location) {
-      current = new URL(location, current).toString();
+      const next = new URL(location, current).toString();
+      current = rewrite ? rewrite(next) : next;
       await assertSafeTarget(current);
       continue;
     }
@@ -688,8 +700,9 @@ function captureSetCookie(jar, url, res) {
 // letting firefox through. reddit.com started doing this in 2026 (#52), so
 // starting with chrome there would turn every read into two requests against
 // a per-address rate limit of about ten a minute. Subdomains inherit the
-// entry.
-const FIREFOX_FIRST_HOSTS = ['reddit.com'];
+// entry. A redd.it short link is a 301 to a reddit.com post, and the identity
+// is picked once for the whole chain, so it starts the same way.
+const FIREFOX_FIRST_HOSTS = ['reddit.com', 'redd.it'];
 
 // Reddit has sent logged-out readers of its HTML pages to a login page since
 // June 2026 (#52), while the Atom feed beside each of those pages still
@@ -778,9 +791,10 @@ export async function viaImpers(impers, target, jar) {
       headers: jarHeaders(jar, url, {}),
     });
   const onResponse = (url, res) => captureSetCookie(jar, url, res);
+  const rewrite = (url) => readableURL(url, jar);
   const attempt = async (impersonate) => {
     try {
-      const { res } = await followRedirects(asking(impersonate), target, { onResponse });
+      const { res } = await followRedirects(asking(impersonate), target, { onResponse, rewrite });
       return { res, status: res.status ?? res.statusCode ?? 0 };
     } catch (err) {
       if (err?.name !== 'ImpersonateError') throw err;
@@ -827,7 +841,8 @@ async function viaFetch(target, jar) {
       : fetch(url, { redirect: 'manual', headers });
   };
   const onResponse = (url, res) => captureSetCookie(jar, url, res);
-  const { res, url: current } = await followRedirects(get, target, { onResponse });
+  const rewrite = (url) => readableURL(url, jar);
+  const { res, url: current } = await followRedirects(get, target, { onResponse, rewrite });
   if (!res.ok) {
     throw new Error(`fetch failed: ${res.status} ${res.statusText} for ${current}`);
   }

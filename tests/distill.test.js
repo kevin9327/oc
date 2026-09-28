@@ -267,6 +267,27 @@ test('an RSS 2.0 entry is opened by its link, not a non-permalink guid', () => {
   assert.ok(text.includes('Second lede.'), 'item without content:encoded lost its description');
 });
 
+test('an RSS 2.0 pubDate prints as a date, not as its first ten characters', () => {
+  // pubDate is RFC 822, the day name first. Cutting it where an Atom
+  // timestamp is cut printed "Mon, 17 Au" under every WordPress post.
+  const rss = readFileSync(new URL('./pages/rss20.xml', import.meta.url), 'utf8');
+  const lines = distill(rss, 'https://blog.example.test/feed.xml').blocks.map((b) => b.text);
+  assert.ok(lines.includes('2026-08-17'), `pubDate not read as a date: ${JSON.stringify(lines)}`);
+  assert.ok(lines.includes('2026-08-18'), 'second item lost its date');
+  assert.ok(!lines.some((l) => /\bAu$/.test(l)), 'a date was cut mid-month');
+  // The day is the one the feed wrote, in its own zone, the way the slice of
+  // an Atom timestamp already reads, not the UTC day it converts to.
+  const late = `<?xml version="1.0"?><rss version="2.0"><channel><title>Late</title>
+    <item><title>Late post</title><link>https://example.test/late</link>
+    <pubDate>Sat, 5 Sep 2026 23:30:00 -0700</pubDate><description>Body text here.</description></item>
+    </channel></rss>`;
+  assert.ok(distill(late, 'https://example.test/rss').blocks.some((b) => b.text === '2026-09-05'),
+    'a single-digit day or a zone offset threw the date off');
+  // A date in neither form is printed as the feed wrote it, rather than cut.
+  const odd = late.replace('Sat, 5 Sep 2026 23:30:00 -0700', 'yesterday');
+  assert.ok(distill(odd, 'https://example.test/rss').blocks.some((b) => b.text === 'yesterday'));
+});
+
 test('a youtube watch page renders as title, byline, description, and transcript links', () => {
   const watch = readFileSync(new URL('./pages/youtube_watch.html', import.meta.url), 'utf8');
   const p = distill(watch, 'https://www.youtube.com/watch?v=fixture123');

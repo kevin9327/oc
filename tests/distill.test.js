@@ -267,6 +267,27 @@ test('an RSS 2.0 entry is opened by its link, not a non-permalink guid', () => {
   assert.ok(text.includes('Second lede.'), 'item without content:encoded lost its description');
 });
 
+test('an RSS 2.0 pubDate prints as a date, not as its first ten characters', () => {
+  // pubDate is RFC 822, the day name first. Cutting it where an Atom
+  // timestamp is cut printed "Mon, 17 Au" under every WordPress post.
+  const rss = readFileSync(new URL('./pages/rss20.xml', import.meta.url), 'utf8');
+  const lines = distill(rss, 'https://blog.example.test/feed.xml').blocks.map((b) => b.text);
+  assert.ok(lines.includes('2026-08-17'), `pubDate not read as a date: ${JSON.stringify(lines)}`);
+  assert.ok(lines.includes('2026-08-18'), 'second item lost its date');
+  assert.ok(!lines.some((l) => /\bAu$/.test(l)), 'a date was cut mid-month');
+  // The day is the one the feed wrote, in its own zone, the way the slice of
+  // an Atom timestamp already reads, not the UTC day it converts to.
+  const late = `<?xml version="1.0"?><rss version="2.0"><channel><title>Late</title>
+    <item><title>Late post</title><link>https://example.test/late</link>
+    <pubDate>Sat, 5 Sep 2026 23:30:00 -0700</pubDate><description>Body text here.</description></item>
+    </channel></rss>`;
+  assert.ok(distill(late, 'https://example.test/rss').blocks.some((b) => b.text === '2026-09-05'),
+    'a single-digit day or a zone offset threw the date off');
+  // A date in neither form is printed as the feed wrote it, rather than cut.
+  const odd = late.replace('Sat, 5 Sep 2026 23:30:00 -0700', 'yesterday');
+  assert.ok(distill(odd, 'https://example.test/rss').blocks.some((b) => b.text === 'yesterday'));
+});
+
 test('a youtube watch page renders as title, byline, description, and transcript links', () => {
   const watch = readFileSync(new URL('./pages/youtube_watch.html', import.meta.url), 'utf8');
   const p = distill(watch, 'https://www.youtube.com/watch?v=fixture123');
@@ -359,6 +380,23 @@ test('a space in an element of its own still separates two words', () => {
   assert.ok(text.includes('First appeared'), `words glued:\n${text}`);
   assert.ok(text.includes('20 February 1991'), `words glued:\n${text}`);
   assert.ok(text.includes('ten items'), `words glued:\n${text}`);
+});
+
+test('a one-character value is kept, a lone bullet or separator is not', () => {
+  // A Wikipedia infobox puts each value in a cell of its own, so a single
+  // digit is a whole block: "Children" was printed with no number after it.
+  const p = distill(`<html><body><table>
+    <tr><th>Spouse</th><td>Michelle Robinson</td></tr>
+    <tr><th>Children</th><td>2</td></tr>
+    <tr><th>Grade</th><td>A</td></tr>
+    <tr><th>Available</th><td>是</td></tr>
+  </table><ul><li>Home</li><li>|</li><li>•</li><li>About</li></ul></body></html>`, 'https://example.test/');
+  const texts = p.blocks.map((b) => b.text);
+  const after = (label) => texts[texts.indexOf(label) + 1];
+  assert.equal(after('Children'), '2', `the value went missing: ${JSON.stringify(texts)}`);
+  assert.equal(after('Grade'), 'A');
+  assert.equal(after('Available'), '是');
+  assert.ok(!texts.includes('|') && !texts.includes('•'), 'a separator was kept as content');
 });
 
 test('an icon button is named by its aria-label, a nameless one is dropped', () => {

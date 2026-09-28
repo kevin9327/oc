@@ -192,7 +192,15 @@ function textToHTML(text, url = '', { full = false, type = '' } = {}) {
   const parts = paragraphs.map((p) => {
     const level = heading(p);
     if (level) return `<h${level}>${escHTML(p.slice(level + 1))}</h${level}>`;
-    return (full ? null : linkList(p, url)) ?? `<pre>${escHTML(p)}</pre>`;
+    if (full) return `<pre>${escHTML(p)}</pre>`;
+    // Expo's llms.txt writes each section heading on the line right above
+    // its list, with no blank line between, so the two arrive as one
+    // paragraph. The heading line is then a heading and the rest a list.
+    const cut = p.indexOf('\n');
+    const top = cut > 0 ? heading(p.slice(0, cut)) : 0;
+    const list = linkList(top ? p.slice(cut + 1) : p, url);
+    if (!list) return `<pre>${escHTML(p)}</pre>`;
+    return top ? `<h${top}>${escHTML(p.slice(top + 1, cut))}</h${top}>${list}` : list;
   });
   // Only a heading that opens the file names it. A README that starts with
   // prose and has a `# More information` section further down is not titled

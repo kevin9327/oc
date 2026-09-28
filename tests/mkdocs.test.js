@@ -63,6 +63,29 @@ test('when no section holds every word, the best partial matches say so', () => 
   assert.equal(searchMkdocs(entries(), 'xyzzy').total, 0);
 });
 
+test('a query word is cut into words the way titles and bodies are', () => {
+  // The query was split on spaces only while titles and bodies were split
+  // at every non-word character, so "pyproject.toml" could never equal a
+  // word of the index and found nothing, a question's closing "?" left its
+  // last word unmatched, and an accented word matched no title at all.
+  const docs = buildMkdocsEntries(parseMkdocsIndex(JSON.stringify({ docs: [
+    { location: 'concepts/projects/layout/', title: 'Project structure and files', text: 'The files uv reads and writes.' },
+    { location: 'concepts/projects/layout/#the-pyprojecttoml', title: 'The pyproject.toml', text: 'Project metadata is defined in a pyproject.toml file.' },
+    { location: 'concepts/projects/layout/#the-lockfile', title: 'The lockfile', text: 'uv creates a uv.lock file next to the pyproject.toml.' },
+    { location: 'concepts/projects/dependencies/#dependency-groups', title: 'Dependency groups', text: 'Use --group to add a dependency to a group.' },
+    { location: 'fr/', title: 'Démarrage rapide', text: 'Créer un projet.' },
+  ] })));
+  const first = (query) => searchMkdocs(docs, query).hits[0]?.text;
+  assert.equal(first('pyproject.toml'), 'The pyproject.toml');
+  assert.equal(first('what is uv.lock?'), 'The lockfile');
+  assert.equal(first('--group'), 'Dependency groups');
+  assert.equal(first('démarrage'), 'Démarrage rapide');
+  const question = searchMkdocs(docs, "what's a dependency group?");
+  assert.deepEqual(question.words, ['dependency', 'group']);
+  assert.equal(question.partial, false);
+  assert.equal(question.hits[0].text, 'Dependency groups');
+});
+
 test('the results page links each section, keeps repeated titles apart, and escapes', () => {
   const html = resultsToHTML(BASE, 'import unused', searchMkdocs(entries(), 'import unused'));
   assert.match(html, /<a href="https:\/\/docs\.astral\.sh\/uv\/rules\/a\/#example">Example \(rule-a \(A001\)\)<\/a> section: import os &lt;unused&gt;/);

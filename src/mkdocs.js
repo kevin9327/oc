@@ -69,7 +69,14 @@ const STOP = new Set(['a', 'an', 'the', 'to', 'of', 'in', 'on', 'for', 'and', 'o
 // "dependency" should find "Managing dependencies", so a word also matches
 // by its stem once a plural or verb ending is off.
 const stem = (w) => (w.length > 4 ? w.replace(/(ies|es|s|y|ing|ed)$/, '') : w);
-const tokensOf = (s) => new Set(s.split(/[^a-z0-9_]+/));
+// A title, a body, and the query are all cut into words at the same places,
+// so "pyproject.toml", "uv.lock", "--group", or a question's closing "?"
+// meet the words the index holds, and a letter outside ASCII stays in its
+// word. A contraction's tail goes first: "what's" is "what", not "what" and
+// a stray "s" every section would have to match.
+const wordsOf = (s) => s.replace(/(?<=\p{L})['’](s|t|re|ve|ll|d|m)(?!\p{L})/gu, '')
+  .split(/[^\p{L}\p{N}_]+/u).filter(Boolean);
+const tokensOf = (s) => new Set(wordsOf(s));
 // A stem matches a word it starts, give or take an ending: "add" finds
 // "adding" but not "additional".
 const rooted = (tokens, root) => [...tokens].some((t) => t.startsWith(root) && t.length - root.length <= 3);
@@ -85,7 +92,7 @@ const rooted = (tokens, root) => [...tokens].some((t) => t.startsWith(root) && t
  * @param {string} query
  */
 export function searchMkdocs(entries, query) {
-  const all = [...new Set(query.toLowerCase().split(/\s+/).filter(Boolean))];
+  const all = [...new Set(wordsOf(query.toLowerCase()))];
   const topical = all.filter((w) => !STOP.has(w));
   const words = topical.length ? topical : all;
   const scored = [];

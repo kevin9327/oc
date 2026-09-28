@@ -157,7 +157,7 @@ export function read(n, { session = DEFAULT_SESSION, budget = 2000 } = {}) {
     // budget it still gets cut: 'up to N tokens' is a promise the page must
     // not be able to break.
     if (!lines.length && cost > budget) {
-      lines.push(`${line.slice(0, budget * 4)} ... cut at ~${budget} tokens, raise --budget for the rest`);
+      lines.push(`${line.slice(0, whole(line, budget * 4))} ... cut at ~${budget} tokens, raise --budget for the rest`);
       spent += budget;
       continue;
     }
@@ -210,6 +210,12 @@ export function submit(n) {
 // still fit in a screenful.
 const BEFORE = 60;
 const SNIPPET = 200;
+
+// A character past U+FFFF (an emoji, a rare CJK ideograph) is two UTF-16
+// units, and an edge between them prints half of one, which a terminal shows
+// as the replacement character. The compact view's cap steps back for the
+// same reason (render.js); a snippet's edges and read's cut do the same.
+const whole = (s, i) => (/[\uD800-\uDBFF]/.test(s[i - 1] ?? '') ? i - 1 : i);
 
 /**
  * Where a string appears on the current page. This is the answer to "the page
@@ -307,8 +313,9 @@ function search(blocks, terms) {
     // One number, one line: a run of short blocks under the same handle would
     // otherwise report the same place several times.
     if (out.length && out.at(-1).n === n) continue;
-    const start = Math.max(0, Math.min(...found) - BEFORE);
-    const end = Math.min(block.text.length, start + SNIPPET);
+    const from = Math.max(0, Math.min(...found) - BEFORE);
+    const start = whole(block.text, from);
+    const end = whole(block.text, Math.min(block.text.length, from + SNIPPET));
     // One line per match is the promise the list makes, and a code block is the
     // one kind of block that carries lines of its own. They survive where they
     // are read rather than indexed: the whole-match mode above, and `read`.

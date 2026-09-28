@@ -724,7 +724,7 @@ export function feedToHTML(text) {
       || rssLink(entry)
       || (guidIsPermalink ? field(entry, 'guid') : '');
     const author = field(entry, 'author name') || field(entry, 'author');
-    const date = (field(entry, 'updated') || field(entry, 'published') || field(entry, 'pubdate')).slice(0, 10);
+    const date = feedDate(field(entry, 'updated') || field(entry, 'published') || field(entry, 'pubdate'));
     const byline = [author && `by ${author}`, date].filter(Boolean).join(', ');
     // Atom escapes the entry body, so textContent of content/summary is the
     // HTML itself, ready to be embedded and parsed like any page.
@@ -750,6 +750,27 @@ export function feedToHTML(text) {
   // A full skeleton, because linkedom treats the first element of a bare
   // multi-rooted fragment as the whole document and drops its siblings.
   return `<html><head><title>${esc(feedTitle)}</title></head><body>\n${parts.join('\n')}\n</body></html>`;
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const RFC822_DATE = /^(?:[a-z]{3},\s*)?(\d{1,2})\s+([a-z]{3})\s+(\d{4})\b/i;
+
+/**
+ * An entry's date as YYYY-MM-DD. Atom writes ISO 8601, so the day is its
+ * first ten characters. RSS 2.0 writes RFC 822 ('Mon, 17 Aug 2026 00:00:00
+ * GMT'), and ten characters of that are 'Mon, 17 Au'. Its day, month, and
+ * year are read as written rather than through Date, which would move a late
+ * evening post to the next day in UTC; the Atom slice keeps the feed's own
+ * day too. Anything else is printed as the feed wrote it, not cut.
+ * @param {string} s
+ * @returns {string}
+ */
+function feedDate(s) {
+  if (/^\d{4}-\d\d-\d\d/.test(s)) return s.slice(0, 10);
+  const m = s.match(RFC822_DATE);
+  const month = m ? MONTHS.indexOf(m[2].toLowerCase()) + 1 : 0;
+  if (!month) return s;
+  return `${m[3]}-${String(month).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
 }
 
 const escHTML = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

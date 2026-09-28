@@ -97,3 +97,22 @@ test('a Markdown link list is a list of links to follow, as llms.txt needs', () 
   assert.ok(lines.includes('- [Script](javascript:alert(1))'));
   assert.equal(toMarkdown(LLMS, 'https://svelte.dev/llms.txt'), LLMS.trimEnd(), 'raw rewrote the file');
 });
+
+test('a link title holding a bracketed word keeps its list of links', () => {
+  // drizzle's llms.txt names a page `[Joins [SQL]]`. The title stopped at
+  // the first `]`, the line did not match, and the whole section around it
+  // fell back to verbatim text with none of its links followable.
+  const text = '## PostgreSQL\n\n'
+    + '- [Select](https://orm.drizzle.team/docs/pg/select): Select rows.\n'
+    + '- [Joins [SQL]](https://orm.drizzle.team/docs/pg/joins): Join tables.\n'
+    + '- [Insert](https://orm.drizzle.team/docs/pg/insert)\n';
+  const page = distill(text, 'https://orm.drizzle.team/llms.txt');
+  assert.deepEqual(page.blocks.filter((b) => b.href).map((b) => [b.text, b.href]), [
+    ['Select', 'https://orm.drizzle.team/docs/pg/select'],
+    ['Joins [SQL]', 'https://orm.drizzle.team/docs/pg/joins'],
+    ['Insert', 'https://orm.drizzle.team/docs/pg/insert'],
+  ]);
+  // Brackets that do not pair up are still not a title.
+  const loose = distill('- [a ] b](https://example.com/a)\n- [c](https://example.com/c)\n', 'https://example.com/llms.txt');
+  assert.equal(loose.blocks.filter((b) => b.href).length, 0);
+});

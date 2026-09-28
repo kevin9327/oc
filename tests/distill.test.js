@@ -347,6 +347,23 @@ test('an entity does not put spaces inside a word', () => {
   assert.ok(text.includes('interface & its restraint'), 'a real space was swallowed');
 });
 
+test('a one-character value is kept, a lone bullet or separator is not', () => {
+  // A Wikipedia infobox puts each value in a cell of its own, so a single
+  // digit is a whole block: "Children" was printed with no number after it.
+  const p = distill(`<html><body><table>
+    <tr><th>Spouse</th><td>Michelle Robinson</td></tr>
+    <tr><th>Children</th><td>2</td></tr>
+    <tr><th>Grade</th><td>A</td></tr>
+    <tr><th>Available</th><td>是</td></tr>
+  </table><ul><li>Home</li><li>|</li><li>•</li><li>About</li></ul></body></html>`, 'https://example.test/');
+  const texts = p.blocks.map((b) => b.text);
+  const after = (label) => texts[texts.indexOf(label) + 1];
+  assert.equal(after('Children'), '2', `the value went missing: ${JSON.stringify(texts)}`);
+  assert.equal(after('Grade'), 'A');
+  assert.equal(after('Available'), '是');
+  assert.ok(!texts.includes('|') && !texts.includes('•'), 'a separator was kept as content');
+});
+
 test('an icon button is named by its aria-label, a nameless one is dropped', () => {
   const blocks = social().blocks;
   assert.ok(blocks.some((b) => b.type === 'button' && b.text === 'Follow'), 'a labelled button went missing');

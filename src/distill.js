@@ -1445,9 +1445,11 @@ function mergeText(blocks) {
       out.push(b);
     }
   }
-  // Single stray characters (list bullets, separators) cost tokens and say nothing.
+  // Single stray characters (list bullets, separators) cost tokens and say
+  // nothing. A single letter or digit is a value, though: a table cell holds
+  // one as a block of its own, and an infobox read "Children" with no number.
   return out
     .filter((b) => b.type !== 'break')
-    .filter((b) => b.type !== 'text' || b.text.length > 1)
+    .filter((b) => b.type !== 'text' || b.text.length > 1 || /[\p{L}\p{N}]/u.test(b.text))
     .map(({ host, pre, post, ...block }) => block);
 }

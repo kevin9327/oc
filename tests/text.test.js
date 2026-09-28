@@ -74,6 +74,26 @@ test('the reference shortcuts resolve, and a file path keeps its slashes', () =>
   assert.equal(resolveSite('gh', ['releases', 'facebook', 'react']).url, 'https://github.com/facebook/react/releases');
 });
 
+test('a heading on the line right above its link list is a heading and a list', () => {
+  // Expo's llms.txt has no blank line between a section heading and its
+  // list, so the pair was one paragraph, which the heading line kept from
+  // being a list: every link in the section stayed verbatim text.
+  const text = '# Expo documentation\n\n### AI agents\n'
+    + '- [Claude Code and Expo](https://docs.expo.dev/agents/claude.md)\n'
+    + '- [Codex and Expo](https://docs.expo.dev/agents/codex.md)\n\n'
+    + '### Notes\nPlain prose under a heading.\n- [Not a list](https://docs.expo.dev/x.md)\n';
+  const page = distill(text, 'https://docs.expo.dev/llms.txt');
+  assert.deepEqual(page.blocks.filter((b) => b.href).map((b) => [b.text, b.href]), [
+    ['Claude Code and Expo', 'https://docs.expo.dev/agents/claude.md'],
+    ['Codex and Expo', 'https://docs.expo.dev/agents/codex.md'],
+  ]);
+  const heading = page.blocks.find((b) => b.text === 'AI agents');
+  assert.equal(heading?.type, 'heading', 'the heading line was lost or kept its #');
+  // A heading above anything but a link list stays one verbatim block.
+  assert.ok(texts(page).some((l) => l.startsWith('### Notes\nPlain prose under a heading.')));
+  assert.equal(toMarkdown(text, 'https://docs.expo.dev/llms.txt'), text.trimEnd(), 'raw rewrote the file');
+});
+
 // The shape of svelte.dev's llms.txt: a title, a summary, and sections of
 // links with a description each.
 const LLMS = '# Svelte Documentation for LLMs\n\n> Svelte is a UI framework.\n\n## Documentation Sets\n\n'

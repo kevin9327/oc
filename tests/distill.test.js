@@ -592,6 +592,15 @@ test('a truncated block ends on a sentence, so what is shown can be trusted', ()
   assert.ok(unbroken.length > TEXT_CAP, `an early sentence end must not shrink the view:\n${unbroken}`);
 });
 
+test('a cut at the cap never splits an emoji in half', () => {
+  // An emoji is two UTF-16 units. With its first unit the last one inside
+  // the cap, the view printed half of it, which a terminal shows as U+FFFD.
+  const text = `${'x'.repeat(TEXT_CAP - 1)}\u{1F600} and the rest of the post`;
+  const line = render({ url: '', title: '', blocks: [{ n: 1, type: 'text', text }] }, { budget: 60 }).text;
+  assert.ok(line.isWellFormed(), `a lone surrogate reached the view: ${JSON.stringify(line.slice(TEXT_CAP - 2, TEXT_CAP + 20))}`);
+  assert.match(line, new RegExp(`x{${TEXT_CAP - 1}} \\.\\.\\. \\+${text.length - TEXT_CAP + 1} chars`));
+});
+
 test('a highlighted command comes out runnable', () => {
   // Every token of this command is its own element on the page. Space-joining
   // them gave `aws s3 cp s3 : // bucket / -- recursive`, which is not a command
